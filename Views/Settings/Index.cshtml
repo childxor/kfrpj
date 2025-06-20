@@ -1,0 +1,114 @@
+<!-- Views/Settings/Index.cshtml -->
+@model IEnumerable<kfrpj.Models.settings.settings_list>
+@{
+    ViewData["Title"] = "ตั้งค่าระบบ - ระบบจัดการห้องเช่า";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">ตั้งค่าระบบ</h2>
+            <p class="text-muted">จัดการค่าพารามิเตอร์ต่างๆ ของระบบ</p>
+        </div>
+    </div>
+
+    @foreach(var category in Model.GroupBy(s => s.category))
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">@category.Key</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @foreach(var setting in category)
+                    {
+                        <div class="col-md-6 mb-3">
+                            <div class="setting-item">
+                                <label class="form-label">
+                                    <strong>@setting.setting_name</strong>
+                                    @if(!string.IsNullOrEmpty(setting.unit))
+                                    {
+                                        <span class="text-muted">(@setting.unit)</span>
+                                    }
+                                </label>
+                                <div class="input-group">
+                                    <input type="@(setting.data_type == "number" || setting.data_type == "decimal" ? "number" : "text")" 
+                                           class="form-control setting-input" 
+                                           value="@setting.setting_value"
+                                           data-setting-id="@setting.setting_id"
+                                           data-setting-type="@setting.data_type"
+                                           @(setting.data_type == "decimal" ? "step='0.01'" : "")>
+                                    <button class="btn btn-outline-primary update-setting-btn" 
+                                            type="button" 
+                                            data-setting-id="@setting.setting_id">
+                                        <i class="bi bi-check"></i>
+                                    </button>
+                                </div>
+                                @if(!string.IsNullOrEmpty(setting.description))
+                                {
+                                    <small class="text-muted">@setting.description</small>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('.update-setting-btn').on('click', function() {
+                const settingId = $(this).data('setting-id');
+                const input = $(`.setting-input[data-setting-id="${settingId}"]`);
+                const value = input.val();
+                
+                $.ajax({
+                    url: '/Settings/UpdateSetting',
+                    type: 'POST',
+                    data: {
+                        settingId: settingId,
+                        value: value
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            Swal.fire({
+                                title: 'สำเร็จ!',
+                                text: 'อัปเดตการตั้งค่าเรียบร้อยแล้ว',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            title: 'เกิดข้อผิดพลาด!',
+                            text: 'ไม่สามารถอัปเดตการตั้งค่าได้',
+                            icon: 'error'
+                        });
+                    }
+                });
+            });
+
+            // อัปเดตเมื่อกด Enter
+            $('.setting-input').on('keypress', function(e) {
+                if(e.which === 13) {
+                    const settingId = $(this).data('setting-id');
+                    $(`.update-setting-btn[data-setting-id="${settingId}"]`).click();
+                }
+            });
+        });
+    </script>
+}

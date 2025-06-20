@@ -1,8 +1,10 @@
 using kfrpj.Models;
 using kfrpj.Models.rooms;
+using kfrpj.Models.settings;
 using kfrpj.Models.tenants;
 using kfrpj.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
+using kfrpj.Models.finance;
 
 namespace kfrpj.Data
 {
@@ -20,6 +22,12 @@ namespace kfrpj.Data
         public DbSet<tenants_list> tenants_list { get; set; }
 
         public DbSet<TenantReportViewModel> tenant_report_view_models { get; set; }
+
+        public DbSet<settings_list> settings_list { get; set; }
+
+        public DbSet<water_meters_list> water_meters_list { get; set; }
+        public DbSet<electric_meters_list> electric_meters_list { get; set; }
+        public DbSet<room_charges_list> room_charges_list { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

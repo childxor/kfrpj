@@ -1,16 +1,16 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using kfrpj.Data;
 using kfrpj.Models.rooms;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Security.Claims;
 
 namespace kfrpj.Controllers
 {
     public class RoomsController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger<RoomsController> _logger; 
+        private readonly ILogger<RoomsController> _logger;
 
         public RoomsController(ApplicationDbContext context, ILogger<RoomsController> logger)
         {
@@ -23,9 +23,9 @@ namespace kfrpj.Controllers
         {
             try
             {
-                var rooms = await _context.rooms_list
-                    .Where(r => r.record_status == "N")
-                    .OrderBy(r => r.room_name) 
+                var rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
+                    .OrderBy(r => r.room_name)
                     .ToListAsync();
                 return View(rooms);
             }
@@ -43,8 +43,8 @@ namespace kfrpj.Controllers
         {
             try
             {
-                var rooms = await _context.rooms_list
-                    .Where(r => r.record_status == "N")
+                var rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
                     .OrderBy(r => r.room_name)
                     .ToListAsync();
 
@@ -54,7 +54,10 @@ namespace kfrpj.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลห้อง");
-                return StatusCode(500, new { error = "ไม่สามารถดึงข้อมูลห้องได้ กรุณาลองใหม่อีกครั้ง" });
+                return StatusCode(
+                    500,
+                    new { error = "ไม่สามารถดึงข้อมูลห้องได้ กรุณาลองใหม่อีกครั้ง" }
+                );
             }
         }
 
@@ -74,7 +77,10 @@ namespace kfrpj.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลห้อง ID: {id}");
-                return StatusCode(500, new { error = "ไม่สามารถดึงข้อมูลห้องได้ กรุณาลองใหม่อีกครั้ง" });
+                return StatusCode(
+                    500,
+                    new { error = "ไม่สามารถดึงข้อมูลห้องได้ กรุณาลองใหม่อีกครั้ง" }
+                );
             }
         }
 
@@ -98,7 +104,10 @@ namespace kfrpj.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการเพิ่มห้องใหม่");
-                return StatusCode(500, new { error = "ไม่สามารถเพิ่มห้องใหม่ได้ กรุณาลองใหม่อีกครั้ง" });
+                return StatusCode(
+                    500,
+                    new { error = "ไม่สามารถเพิ่มห้องใหม่ได้ กรุณาลองใหม่อีกครั้ง" }
+                );
             }
         }
 
@@ -138,7 +147,10 @@ namespace kfrpj.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลห้อง ID: {id}");
-                return StatusCode(500, new { error = "ไม่สามารถแก้ไขข้อมูลห้องได้ กรุณาลองใหม่อีกครั้ง" });
+                return StatusCode(
+                    500,
+                    new { error = "ไม่สามารถแก้ไขข้อมูลห้องได้ กรุณาลองใหม่อีกครั้ง" }
+                );
             }
         }
 
@@ -189,7 +201,7 @@ namespace kfrpj.Controllers
                 room_description = room.room_description,
                 created_at = DateTime.Now,
                 created_by = HttpContext.Session.GetString("Username") ?? "System",
-                record_status = "N"
+                record_status = "N",
             };
             _context.rooms_list.Add(newRoom);
             await _context.SaveChangesAsync();
@@ -211,28 +223,56 @@ namespace kfrpj.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetRoomStatistics() 
+        public async Task<IActionResult> GetRoomStatistics()
         {
-            var statistics = await _context.rooms_list
-                .GroupBy(r => r.room_status)
+            var statistics = await _context
+                .rooms_list.GroupBy(r => r.room_status)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             var totalRooms = statistics.Sum(s => s.Count);
             var availableRooms = statistics.FirstOrDefault(s => s.Status == "ว่าง")?.Count ?? 0;
             var occupiedRooms = statistics.FirstOrDefault(s => s.Status == "ไม่ว่าง")?.Count ?? 0;
-            var totalRevenue = await _context.rooms_list
-                .Where(r => r.room_status == "ไม่ว่าง")
+            var totalRevenue = await _context
+                .rooms_list.Where(r => r.room_status == "ไม่ว่าง")
                 .SumAsync(r => r.room_price);
 
-            return Json(new
-            {
-                totalRooms = totalRooms,
-                availableRooms = availableRooms,
-                occupiedRooms = occupiedRooms,
-                totalRevenue = totalRevenue
-            });
+            return Json(
+                new
+                {
+                    totalRooms = totalRooms,
+                    availableRooms = availableRooms,
+                    occupiedRooms = occupiedRooms,
+                    totalRevenue = totalRevenue,
+                }
+            );
         }
-    
+
+        // เพิ่ม Method สำหรับดึงรายการห้องที่ใช้งานได้
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableRooms()
+        {
+            try
+            {
+                var rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
+                    .Select(r => new
+                    {
+                        room_id = r.room_id,
+                        room_name = r.room_name,
+                        room_status = r.room_status,
+                        room_price = r.room_price,
+                    })
+                    .OrderBy(r => r.room_name)
+                    .ToListAsync();
+
+                return Json(rooms);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลห้อง");
+                return Json(new object[0]);
+            }
+        }
     }
 }

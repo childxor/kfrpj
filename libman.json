@@ -56,6 +56,18 @@
       "files": [
         "dist/chart.umd.js"
       ]
+    },
+    {
+      "library": "moment.js@2.29.4",
+      "destination": "wwwroot/lib/moment/",
+      "files": [
+        "moment.min.js",
+        "locale/th.js"
+      ]
+    },
+    {
+      "library": "jquery@3.7.1",
+      "destination": "wwwroot/lib/jquery/"
     }
   ]
-} 
+}

@@ -17,6 +17,10 @@
     <!-- SweetAlert2 CSS -->
     <link rel="stylesheet" href="~/lib/sweetalert2/sweetalert2.min.css">
     <!-- Google Fonts สำหรับภาษาไทย -->
+    <script src="~/lib/moment/moment.min.js"></script>
+    <script src="~/lib/moment/locale/th.js"></script>
+    <!-- jQuery -->
+    <script src="~/lib/jquery/jquery.min.js"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&family=Prompt:wght@400;500;600&display=swap"
         rel="stylesheet">
@@ -243,104 +247,105 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     @if (Context.Session.GetString("UserId") != null)
                     {
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-area="" asp-controller="Home"
-                                asp-action="Index">หน้าหลัก</a>
-                        </li>
+                        <ul class="navbar-nav flex-grow-1">
+                            <li class="nav-item">
+                                <a class="nav-link text-white" asp-area="" asp-controller="Home"
+                                    asp-action="Index">หน้าหลัก</a>
+                            </li>
 
-                        <!-- เมนูจัดการห้อง -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white" href="#" id="roomDropdown" role="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                จัดการห้อง
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="roomDropdown">
-                                <li><a class="dropdown-item" id="roomList" href="/Rooms/Index">รายการห้องทั้งหมด</a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider d-none">
-                                </li>
-                            </ul>
-                        </li>
+                            <!-- เมนูจัดการห้อง -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="roomDropdown" role="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    จัดการห้อง
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="roomDropdown">
+                                    <li><a class="dropdown-item" id="roomList" href="/Rooms/Index">รายการห้องทั้งหมด</a>
+                                    </li>
+                                    <li>
+                                        <hr class="dropdown-divider d-none">
+                                    </li>
+                                </ul>
+                            </li>
 
-                        <!-- เมนูจัดการผู้เช่า -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white" href="#" id="tenantDropdown" role="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                จัดการผู้เช่า
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="tenantDropdown">
-                                <li><a class="dropdown-item" href="/Tenants/Index">ข้อมูลผู้เช่าทั้งหมด</a></li>
-                            </ul>
-                        </li>
+                            <!-- เมนูจัดการผู้เช่า -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="tenantDropdown" role="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    จัดการผู้เช่า
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="tenantDropdown">
+                                    <li><a class="dropdown-item" href="/Tenants/Index">ข้อมูลผู้เช่าทั้งหมด</a></li>
+                                </ul>
+                            </li>
 
-                        <!-- เมนูการเงิน -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white" href="#" id="financeDropdown" role="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                การเงิน
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="financeDropdown">
-                                <li><a class="dropdown-item" id="financeList" href="/Finance/Index">เก็บค่าเช่า</a></li>
-                                <li><a class="dropdown-item" href="#">ประวัติการชำระเงิน</a></li>
-                                <li><a class="dropdown-item" href="#">รายงานรายได้</a></li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li><a class="dropdown-item" href="#">ค่าใช้จ่าย</a></li>
-                            </ul>
-                        </li>
+                            <!-- เมนูการเงิน -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="financeDropdown" role="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    การเงิน
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="financeDropdown">
+                                    <li><a class="dropdown-item" id="financeList" href="/Finance/Index">เก็บค่าเช่า</a></li>
+                                    <li><a class="dropdown-item" href="#">ประวัติการชำระเงิน</a></li>
+                                    <li><a class="dropdown-item" href="#">รายงานรายได้</a></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li><a class="dropdown-item" href="#">ค่าใช้จ่าย</a></li>
+                                </ul>
+                            </li>
 
-                        <!-- เมนูแจ้งซ่อม -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white" href="#" id="maintenanceDropdown"
-                                role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                แจ้งซ่อม
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="maintenanceDropdown">
-                                <li><a class="dropdown-item" href="#">รายการแจ้งซ่อม</a></li>
-                                <li><a class="dropdown-item" href="#">แจ้งซ่อมใหม่</a></li>
-                                <li><a class="dropdown-item" href="#">ติดตามสถานะ</a></li>
-                            </ul>
-                        </li>
+                            <!-- เมนูแจ้งซ่อม -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="maintenanceDropdown"
+                                    role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    แจ้งซ่อม
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="maintenanceDropdown">
+                                    <li><a class="dropdown-item" href="#">รายการแจ้งซ่อม</a></li>
+                                    <li><a class="dropdown-item" href="#">แจ้งซ่อมใหม่</a></li>
+                                    <li><a class="dropdown-item" href="#">ติดตามสถานะ</a></li>
+                                </ul>
+                            </li>
 
-                        <!-- เมนูตั้งค่า -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white" href="#" id="settingsDropdown" role="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                ตั้งค่า
+                            <!-- เมนูตั้งค่า -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" id="settingsDropdown" role="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    ตั้งค่า
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
+                                    <li><a class="dropdown-item" href="/Settings/Index">ตั้งค่าระบบ</a></li>
+                                    <li><a class="dropdown-item" href="#">ข้อมูลผู้ดูแลระบบ</a></li>
+                                    <li><a class="dropdown-item" href="#">ตั้งค่าการแจ้งเตือน</a></li>
+                                    <li><a class="dropdown-item" href="#">รายงานระบบ</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <!-- ย้ายสวิตช์ dark mode มาอยู่ที่ navbar -->
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3">
+                                <input class="form-check-input" type="checkbox" id="darkModeSwitch">
+                                <label class="form-check-label text-white" for="darkModeSwitch">
+                                    <i class="bi bi-moon-stars"></i> โหมดมืด
+                                </label>
+                            </div>
+                            <!-- เพิ่มปุ่มออกจากระบบ -->
+                            <a href="/Authen/Logout" class="btn btn-outline-light" id="logoutButton">
+                                <i class="bi bi-box-arrow-right"></i> ออกจากระบบ
                             </a>
-                            <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
-                                <li><a class="dropdown-item" href="#">ข้อมูลผู้ดูแลระบบ</a></li>
-                                <li><a class="dropdown-item" href="#">ตั้งค่าการแจ้งเตือน</a></li>
-                                <li><a class="dropdown-item" href="#">รายงานระบบ</a></li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <!-- ย้ายสวิตช์ dark mode มาอยู่ที่ navbar -->
-                    <div class="d-flex align-items-center">
-                        <div class="form-check form-switch me-3">
-                            <input class="form-check-input" type="checkbox" id="darkModeSwitch">
-                            <label class="form-check-label text-white" for="darkModeSwitch">
-                                <i class="bi bi-moon-stars"></i> โหมดมืด
-                            </label>
                         </div>
-                        <!-- เพิ่มปุ่มออกจากระบบ -->
-                        <a href="/Authen/Logout" class="btn btn-outline-light" id="logoutButton">
-                            <i class="bi bi-box-arrow-right"></i> ออกจากระบบ
-                        </a>
-                    </div>
                     }
                     else
                     {
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" asp-controller="Authen" asp-action="Login">
-                                <i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ
-                            </a>
-                        </li>
-                    </ul>
+                        <ul class="navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <a class="nav-link text-white" asp-controller="Authen" asp-action="Login">
+                                    <i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ
+                                </a>
+                            </li>
+                        </ul>
                     }
                 </div>
             </div>
@@ -369,9 +374,44 @@
     <script src="~/lib/sweetalert2/sweetalert2.all.min.js"></script>
     <!-- Chart.js -->
     <script src="~/lib/chart.js/dist/chart.umd.js"></script>
+    <!-- Moment.js สำหรับจัดการวันที่ -->
+    <script src="~/lib/moment/moment.min.js"></script>
+    <script src="~/lib/moment/locale/th.js"></script>
 
     <!-- JavaScript สำหรับ dark mode -->
     <script>
+        // ฟังก์ชันสำหรับจัดการ dark mode
+        function setDarkMode(isDark) {
+            const html = document.documentElement;
+            if (isDark) {
+                html.setAttribute('data-bs-theme', 'dark');
+                document.getElementById('darkModeSwitch').checked = true;
+            } else {
+                html.setAttribute('data-bs-theme', 'light');
+                document.getElementById('darkModeSwitch').checked = false;
+            }
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+        }
+
+        // โหลดการตั้งค่า dark mode จาก localStorage
+        document.addEventListener('DOMContentLoaded', function () {
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            setDarkMode(darkMode);
+
+            // เพิ่ม animation ให้กับ dropdown menu
+            const dropdownMenus = document.querySelectorAll('.dropdown-menu');
+            dropdownMenus.forEach(menu => {
+                menu.classList.add('animate__animated', 'animate__fadeIn');
+            });
+        });
+
+        // จัดการการเปลี่ยน dark mode
+        document.getElementById('darkModeSwitch').addEventListener('change', function (e) {
+            setDarkMode(e.target.checked);
+        });
+    </script>
+
+     <script>
         // ฟังก์ชันสำหรับจัดการ dark mode
         function setDarkMode(isDark) {
             const html = document.documentElement;
