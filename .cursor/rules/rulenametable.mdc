@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+ทุกตาราง table ถ้าจะสร้างต้องมี 5 คอลัมป์นี้เสมอ คือ created_at , created_by , updated_at , updated_by , record_status = 'N' 
+ชื่อตารางจะต้องเป็นตัวพิมพ์เล็กเท่านั้น
+ถ้าจะสร้างไฟล์ Model ต้องมีโฟลเดอร์ชื่อที่สอดคล้องกับ Model และไฟล์ Model ต้องอยู่ในโฟลเดอร์เท่านั้น ชื่อไฟล์ Model ต้องต้องมีคำว่า Model อยุ่ด้วย

@@ -1,0 +1,116 @@
+@{
+    ViewData["Title"] = "สมัครสมาชิก - ระบบจัดการห้องเช่า";
+}
+
+<div class="container">
+    <div class="row justify-content-center align-items-center min-vh-100">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <!-- ส่วนหัวการ์ด -->
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-plus fs-1 text-primary"></i>
+                        <h2 class="mt-3">สมัครสมาชิก</h2>
+                        <p class="text-muted">ระบบจัดการห้องเช่า</p>
+                    </div>
+
+                    <!-- ฟอร์มสมัครสมาชิก -->
+                    <form method="post" action="/Authen/Register">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">ชื่อผู้ใช้</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">อีเมล</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">รหัสผ่าน</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="confirmPassword" class="form-label">ยืนยันรหัสผ่าน</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock-fill"></i>
+                                </span>
+                                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-person-plus me-2"></i>สมัครสมาชิก
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- ส่วนล่างการ์ด -->
+                    <div class="text-center mt-4">
+                        <p class="mb-0">มีบัญชีอยู่แล้ว? <a href="/Authen/Login" class="text-primary">เข้าสู่ระบบ</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // แสดง SweetAlert2 เมื่อมีข้อความแจ้งเตือน
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (TempData["RegisterError"] != null)
+            {
+                <text>
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: '@TempData["RegisterError"]',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+                </text>
+            }
+
+            // ตรวจสอบรหัสผ่านว่าตรงกันหรือไม่
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirmPassword');
+
+            function validatePassword() {
+                if (password.value !== confirmPassword.value) {
+                    confirmPassword.setCustomValidity('รหัสผ่านไม่ตรงกัน');
+                } else {
+                    confirmPassword.setCustomValidity('');
+                }
+            }
+
+            password.addEventListener('change', validatePassword);
+            confirmPassword.addEventListener('keyup', validatePassword);
+
+            // เมื่อโหลดหน้าให้เอา cursor ไปที่ช่อง username
+            document.getElementById('username').focus();
+        });
+    </script>
+}

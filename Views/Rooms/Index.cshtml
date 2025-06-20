@@ -1,0 +1,568 @@
+@model IEnumerable<kfrpj.Models.rooms.rooms_list>
+    @{
+    ViewData["Title"] = "รายการห้อง - ระบบจัดการห้องเช่า";
+    }
+
+    <!-- เพิ่ม CSS สำหรับ DataTables -->
+    <style>
+        /* สไตล์สำหรับตารางในโหมดสว่าง */
+        [data-bs-theme="light"] .table {
+            color: #212529;
+        }
+
+        [data-bs-theme="light"] .table-striped>tbody>tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        [data-bs-theme="light"] .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+
+        /* สไตล์สำหรับตารางในโหมดมืด */
+        [data-bs-theme="dark"] .table {
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .table-striped>tbody>tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.075);
+        }
+
+        /* ปรับแต่ง DataTables */
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_length,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_info,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_processing,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate {
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: #e9ecef !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #343a40 !important;
+            color: #fff !important;
+            border-color: #343a40 !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: #0d6efd !important;
+            color: #fff !important;
+            border-color: #0d6efd !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            color: #6c757d !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter input {
+            background-color: #343a40;
+            border-color: #495057;
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_length select {
+            background-color: #343a40;
+            border-color: #495057;
+            color: #e9ecef;
+        }
+
+        /* ปรับแต่งการ์ด */
+        [data-bs-theme="dark"] .card {
+            background-color: #2b3035;
+            border-color: #373b3e;
+        }
+
+        [data-bs-theme="dark"] .card-header {
+            background-color: #212529;
+            border-color: #373b3e;
+        }
+    </style>
+
+    <div class="container-fluid py-4">
+        <!-- ส่วนหัว -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">รายการห้องทั้งหมด</h2>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#roomModal"
+                        onclick="clearForm()">
+                        <i class="bi bi-plus-circle me-2"></i>เพิ่มห้องใหม่
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- การ์ดแสดงสถิติ -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-4">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">ห้องทั้งหมด</h6>
+                                <h2 class="mb-0" id="totalRooms">@Model.Count()</h2>
+                            </div>
+                            <i class="bi bi-building fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">ห้องว่าง</h6>
+                                <h2 class="mb-0" id="availableRooms">@Model.Count(r => r.room_status == "ว่าง")</h2>
+                            </div>
+                            <i class="bi bi-door-open fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-warning text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">ห้องไม่ว่าง</h6>
+                                <h2 class="mb-0" id="occupiedRooms">@Model.Count(r => r.room_status == "ไม่ว่าง")</h2>
+                            </div>
+                            <i class="bi bi-door-closed fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">รายได้รวม</h6>
+                                <h2 class="mb-0" id="totalRevenue">฿@Model.Where(r => r.room_status == "ไม่ว่าง").Sum(r => r.room_price).ToString("N0")</h2>
+                            </div>
+                            <i class="bi bi-cash-stack fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ตารางแสดงรายการห้อง -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="roomsTable" class="table table-striped table-hover"></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับเพิ่ม/แก้ไขห้อง -->
+    <div class="modal fade" id="roomModal" tabindex="-1" aria-labelledby="roomModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="roomModalLabel">เพิ่มห้องใหม่</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="roomForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="room_id" name="room_id">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="room_name" class="form-label">ชื่อห้อง <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="room_name" name="room_name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="room_type" class="form-label">ประเภทห้อง <span
+                                        class="text-danger">*</span></label>
+                                <select class="form-select" id="room_type" name="room_type" required>
+                                    <option value="">-- เลือกประเภทห้อง --</option>
+                                    <option value="ห้องเดี่ยว">ห้องเดี่ยว</option>
+                                    <option value="ห้องคู่">ห้องคู่</option>
+                                    <option value="ห้องแฟมิลี่">ห้องแฟมิลี่</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="room_price" class="form-label">ราคาห้อง <span
+                                        class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="room_price" name="room_price" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="room_status" class="form-label">สถานะห้อง</label>
+                                <select class="form-select" id="room_status" name="room_status">
+                                    <option value="ว่าง">ว่าง</option>
+                                    <option value="ไม่ว่าง">ไม่ว่าง</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="room_description" class="form-label">รายละเอียดห้อง</label>
+                            <textarea class="form-control" id="room_description" name="room_description"
+                                rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                        <button type="submit" class="btn btn-primary">บันทึก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @section Scripts {
+    <script>
+        $(document).ready(function () {
+            // กำหนดค่า DataTable
+            var table = $('#roomsTable').DataTable({
+                "processing": true,
+                "serverSide": false,
+                "paging": true,
+                "lengthChange": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false,
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
+                },
+                "order": [
+                    [0, 'asc']
+                ],
+                "pageLength": 100,
+                "responsive": true,
+                "ajax": {
+                    "url": "/Rooms/GetRooms",
+                    "type": "POST",
+                    "datatype": "json",
+                    "error": function (xhr, error, thrown) {
+                        console.log("Error:", error);
+                        console.log("XHR:", xhr);
+                        console.log("Thrown:", thrown);
+                        Swal.fire({
+                            title: 'เกิดข้อผิดพลาด!',
+                            text: 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                    }
+                },
+                "columns": [{
+                    "data": "room_id",
+                    "name": "room_id",
+                    "title": "รหัสห้อง",
+                    "render": function (data) {
+                        return "<a href='javascript:void(0)' onclick='editRoom(" + data + ")'>" + data + "</a>";
+                    }
+                },
+                {
+                    "data": "room_name",
+                    "name": "room_name",
+                    "title": "ชื่อห้อง"
+                },
+                {
+                    "data": "room_type",
+                    "name": "room_type",
+                    "title": "ประเภทห้อง"
+                },
+                {
+                    "data": "room_price",
+                    "name": "room_price",
+                    "title": "ราคา",
+                    "render": function (data) {
+                        return "฿" + data.toLocaleString();
+                    }
+                },
+                {
+                    "data": "room_status",
+                    "name": "room_status",
+                    "title": "สถานะ",
+                    "orderable": false,
+                    "render": function (data, type, row) {
+                        var isChecked = data === "ว่าง" ? true : false;
+                        return `
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                id="switch-room-${row.room_id}" ${isChecked ? "checked" : ""}
+                                onchange="toggleRoomStatus(${row.room_id}, this.checked)">
+                            <label class="form-check-label" for="switch-room-${row.room_id}">
+                                ${isChecked ? "ว่าง" : "ไม่ว่าง"}
+                            </label>
+                        </div>
+                        `;
+                    }
+                },
+                {
+                    "data": "room_description",
+                    "name": "room_description",
+                    "title": "รายละเอียด"
+                },
+                {
+                    "data": "room_id",
+                    "title": "จัดการ",
+                    "className": "text-center",
+                    "orderable": false,
+                    "render": function (data, type, row) {
+                        return `
+                                    <button class="btn btn-sm btn-warning me-1" onclick="editRoom(${data})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="confirmDelete(${data})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                <button class="btn btn-sm btn-info ms-1" onclick="duplicateRoom(${data})">
+                                    <i class="bi bi-files"></i>
+                                </button>
+                                `;
+                    }
+                }
+                ]
+            });
+
+            // จัดการการส่งฟอร์ม
+            $('#roomForm').on('submit', function (e) {
+                e.preventDefault();
+                var formData = $(this).serialize();
+                var roomId = $('#room_id').val();
+                var url = roomId ? '/Rooms/Edit/' + roomId : '/Rooms/Create';
+                var method = roomId ? 'PUT' : 'POST';
+
+                $.ajax({
+                    url: url,
+                    type: method,
+                    data: JSON.stringify({
+                        room_id: $('#room_id').val() || 0,
+                        room_name: $('#room_name').val(),
+                        room_type: $('#room_type').val(),
+                        room_price: $('#room_price').val(),
+                        room_status: $('#room_status').val(),
+                        room_description: $('#room_description').val(),
+                        created_by: '@Context.Session.GetString("Username")'
+                    }),
+                    contentType: 'application/json',
+                    success: function (response) {
+                        $('#roomModal').modal('hide');
+                        table.ajax.reload();
+                        Swal.fire({
+                            title: 'สำเร็จ!',
+                            text: roomId ? 'แก้ไขข้อมูลห้องเรียบร้อยแล้ว' : 'เพิ่มห้องใหม่เรียบร้อยแล้ว',
+                            icon: 'success',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                    },
+                    error: function (xhr) {
+                        Swal.fire({
+                            title: 'เกิดข้อผิดพลาด!',
+                            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                    }
+                });
+            });
+
+            // จัดการ modal-backdrop
+            $('#roomModal').on('hidden.bs.modal', function () {
+                $('body').removeClass('modal-open');
+                $('.modal-backdrop').remove();
+            });
+
+            // ป้องกันการเกิด modal-backdrop ซ้ำซ้อน
+            $(document).on('show.bs.modal', '.modal', function () {
+                var zIndex = 1040 + (10 * $('.modal:visible').length);
+                $(this).css('z-index', zIndex);
+                setTimeout(function () {
+                    $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
+                }, 0);
+            });
+        });
+
+        // ฟังก์ชันล้างฟอร์ม
+        function clearForm() {
+            $('#roomForm')[0].reset();
+            $('#room_id').val('');
+            $('#roomModalLabel').text('เพิ่มห้องใหม่');
+            $('#roomModal').modal('hide');
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+        }
+
+        // ฟังก์ชันสำหรับคัดลอกห้อง
+        function duplicateRoom(roomId) {
+            Swal.fire({
+                title: 'ยืนยันการคัดลอกห้อง?',
+                text: "คุณต้องการคัดลอกห้องนี้ใช่หรือไม่?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'ใช่, คัดลอกเลย',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('/Rooms/Duplicate/' + roomId, function (response) {
+                        if (response.success) {
+                            $('#roomsTable').DataTable().ajax.reload();
+                            Swal.fire({
+                                title: 'สำเร็จ!',
+                                text: 'คัดลอกห้องเรียบร้อยแล้ว',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: response.error || 'ไม่สามารถคัดลอกห้องได้',
+                                icon: 'error'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+
+        // ฟังก์ชันแก้ไขห้อง
+        function editRoom(id) {
+            // ไม่ต้องลบ backdrop หรือ modal ด้วยตนเอง
+            $.get('/Rooms/GetRoom/' + id, function (room) {
+                $('#room_id').val(room.room_id);
+                $('#room_name').val(room.room_name);
+                $('#room_type').val(room.room_type);
+                $('#room_price').val(room.room_price);
+                $('#room_status').val(room.room_status);
+                $('#room_description').val(room.room_description);
+                $('#roomModalLabel').text('แก้ไขข้อมูลห้อง');
+                // เปิด modal แบบ Bootstrap 5 ที่ถูกต้อง
+                var modal = new bootstrap.Modal(document.getElementById('roomModal'));
+                modal.show();
+            });
+        }
+
+        // ฟังก์ชันยืนยันการลบ
+        function confirmDelete(id) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "คุณต้องการลบห้องนี้ใช่หรือไม่?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ใช่, ลบเลย',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/Rooms/Delete/' + id,
+                        type: 'DELETE',
+                        success: function (response) {
+                            table.ajax.reload();
+                            Swal.fire({
+                                title: 'สำเร็จ!',
+                                text: 'ลบห้องเรียบร้อยแล้ว',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        },
+                        error: function (xhr) {
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: 'ไม่สามารถลบห้องได้ กรุณาลองใหม่อีกครั้ง',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        function toggleRoomStatus(roomId, isChecked) {
+            var newStatus = isChecked ? "ว่าง" : "ไม่ว่าง";
+            $.ajax({
+                url: '/Rooms/UpdateRoomStatus/' + roomId,
+                type: 'PUT',
+                data: { room_status: newStatus },
+                success: function (response) {
+                    if (response.success) {
+                        updateRoomStatistics();
+                        Swal.fire({
+                            title: 'สำเร็จ!',
+                            text: 'สถานะห้องถูกเปลี่ยนเรียบร้อยแล้ว',
+                            icon: 'success',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                    }
+                },
+                error: function (xhr) {
+                    Swal.fire({
+                        title: 'เกิดข้อผิดพลาด!',
+                        text: 'ไม่สามารถเปลี่ยนสถานะห้องได้ กรุณาลองใหม่อีกครั้ง',
+                        icon: 'error',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                }
+            });
+        }
+
+        function updateRoomStatistics() {
+            $.ajax({
+                url: '/Rooms/GetRoomStatistics',
+                type: 'GET',
+                success: function (data) {
+                    // อัปเดตข้อมูลใน UI
+                    $('#totalRooms').text(data.totalRooms);
+                    $('#availableRooms').text(data.availableRooms);
+                    $('#occupiedRooms').text(data.occupiedRooms);
+                    $('#totalRevenue').text('฿' + data.totalRevenue.toLocaleString());
+                },
+                error: function (xhr) {
+                    console.log("Error fetching statistics:", xhr);
+                }
+            });
+        }
+    </script>
+    }

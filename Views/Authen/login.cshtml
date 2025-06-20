@@ -1,0 +1,163 @@
+@{
+    ViewData["Title"] = "เข้าสู่ระบบ - ระบบจัดการห้องเช่า";
+}
+
+<div class="container">
+    <div class="row justify-content-center align-items-center min-vh-100">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg animate__animated animate__fadeIn">
+                <div class="card-body p-5">
+                    <!-- ส่วนหัวการ์ด -->
+                    <div class="text-center mb-4 animate__animated animate__fadeInDown">
+                        <i class="bi bi-building fs-1 text-primary animate__animated animate__pulse animate__infinite"></i>
+                        <h2 class="mt-3">เข้าสู่ระบบ</h2>
+                        <div class="room-name-container">
+                            <h3 class="room-name">ห้องแถวเจ๊ยุพิน</h3>
+                            <div class="room-name-decoration"></div>
+                        </div> 
+                        <p class="text-muted">ระบบจัดการห้องเช่า</p>
+                    </div>
+
+                    <!-- ฟอร์มล็อกอิน -->
+                    <form method="post" action="/Authen/Login" class="animate__animated animate__fadeInUp">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">ชื่อผู้ใช้</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label">รหัสผ่าน</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                        </div>
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>เข้าสู่ระบบ
+                            </button>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-danger btn-lg" onclick="window.location.href='/Authen/LoginWithGoogle'">
+                                <i class="bi bi-google me-2"></i>ล็อกอินด้วย Google
+                            </button>
+                        </div>
+
+                    </form>
+
+                    <!-- ส่วนล่างการ์ด -->
+                    <div class="text-center mt-4 animate__animated animate__fadeInUp">
+                        <p class="mb-2">ลืมรหัสผ่าน? <a href="/Authen/ForgotPassword" class="text-primary">คลิกที่นี่</a></p>
+                        <p class="mb-0">ยังไม่มีบัญชี? <a href="/Authen/Register" class="text-primary">สมัครสมาชิก</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- เพิ่ม Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <script>
+        // แสดง SweetAlert2 เมื่อมีข้อความแจ้งเตือน
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (TempData["LoginError"] != null)
+            {
+                <text>
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: '@TempData["LoginError"]',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    customClass: {
+                        popup: 'swal2-popup-thai',
+                        title: 'swal2-title-thai',
+                        content: 'swal2-content-thai'
+                    }
+                });
+                </text>
+            }
+        });
+
+        //# เมื่อโหลดหน้าให้เอา cursor ไปที่ช่อง username และ password
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('username').focus();
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .swal2-popup-thai,
+        .swal2-title-thai,
+        .swal2-content-thai {
+            font-family: 'Sarabun', 'Prompt', sans-serif !important;
+        }
+
+        .room-name-container {
+            position: relative;
+            margin: 1rem 0;
+            padding: 0.5rem 0;
+        }
+
+        .room-name {
+            font-family: 'Prompt', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #0d6efd;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        .room-name-decoration {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 8px;
+            background: linear-gradient(90deg, transparent, #0d6efd, transparent);
+            border-radius: 4px;
+            opacity: 0.3;
+        }
+
+        .room-name-container:hover .room-name {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
+
+        .room-name-container:hover .room-name-decoration {
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        /* เพิ่ม animation สำหรับชื่อห้อง */
+        @@keyframes glow {
+            0% { text-shadow: 0 0 5px rgba(13, 110, 253, 0.5); }
+            50% { text-shadow: 0 0 20px rgba(13, 110, 253, 0.8); }
+            100% { text-shadow: 0 0 5px rgba(13, 110, 253, 0.5); }
+        }
+
+        .room-name {
+            animation: glow 2s infinite;
+        }
+    </style>
+    <!-- เพิ่ม Google Fonts สำหรับภาษาไทย -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+}

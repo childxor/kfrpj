@@ -1,0 +1,303 @@
+@model IEnumerable<kfrpj.Models.tenants.tenants_list>
+@{
+    ViewData["Title"] = "รายการผู้เช่า - ระบบจัดการผู้เช่า";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">รายการผู้เช่าทั้งหมด</h2>
+                <div class="d-flex">
+                    <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#tenantModal"
+                        onclick="clearForm()">
+                        <i class="bi bi-plus-circle me-2"></i>เพิ่มผู้เช่าใหม่
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="generatePdfReport()">
+                        <i class="bi bi-file-pdf me-2"></i>ดูรายงาน PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+ 
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="tenantsTable" class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>รหัสผู้เช่า</th>
+                            <th>ชื่อผู้เช่า</th>
+                            <th>อีเมล</th>
+                            <th>หมายเลขโทรศัพท์</th>
+                            <th>สถานะ</th>
+                            <th>จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tenant in Model.Where(t => t.record_status == "N"))
+                        {
+                            <tr>
+                                <td>@tenant.id</td>
+                                <td>@tenant.name</td>
+                                <td>@tenant.email</td>
+                                <td>@tenant.phone_number</td>
+                                <td>@tenant.record_status</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" onclick="editTenant(@tenant.id)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="confirmDelete(@tenant.id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal สำหรับเพิ่ม/แก้ไขผู้เช่า -->
+<div class="modal fade" id="tenantModal" tabindex="-1" aria-labelledby="tenantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tenantModalLabel">เพิ่มผู้เช่าใหม่</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="tenantForm">
+                <div class="modal-body">
+                    <input type="hidden" id="tenant_id" name="tenant_id">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">ชื่อผู้เช่า <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">อีเมล <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone_number" class="form-label">หมายเลขโทรศัพท์ <span
+                                class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="phone_number" name="phone_number" required>
+                    </div>
+                    <input type="hidden" id="created_by" name="created_by"
+                        value="@Context.Session.GetString("Username")">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal สำหรับแสดง PDF -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 900px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfModalLabel">รายงานข้อมูลผู้เช่า</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 d-flex justify-content-center bg-light">
+                <div style="width: 210mm; height: 297mm; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                    <iframe id="pdfViewer" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="downloadPdf">
+                    <i class="bi bi-download me-2"></i>ดาวน์โหลด PDF
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#tenantsTable').DataTable({
+                "processing": true,
+                "serverSide": false,
+                "paging": true,
+                "lengthChange": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false,
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
+                },
+                "columns": [
+                    { "data": "id" },
+                    { "data": "name" },
+                    { "data": "email" }, 
+                    { "data": "phone_number" },
+                    { "data": "record_status" },
+                    { "data": "action" }
+                ]
+            });
+
+            $('#tenantForm').on('submit', function (e) {
+                e.preventDefault();
+                var tenantId = $('#tenant_id').val();
+                var url = tenantId ? '/Tenants/Edit/' + tenantId : '/Tenants/Create';
+                var method = tenantId ? 'PUT' : 'POST';
+
+                var formData = new FormData(this);
+
+                $.ajax({
+                    url: url,
+                    type: method,
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $('#tenantModal').modal('hide');
+                        location.reload(); // หรือรีเฟรช DataTable ตามเดิม
+                        Swal.fire({
+                            title: 'สำเร็จ!',
+                            text: 'บันทึกข้อมูลเรียบร้อยแล้ว',
+                            icon: 'success',
+                            confirmButtonText: 'ตกลง'
+                        });
+                    },
+                    error: function (xhr) {
+                        Swal.fire({
+                            title: 'เกิดข้อผิดพลาด!',
+                            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+                            icon: 'error',
+                            confirmButtonText: 'ตกลง'
+                        });
+                    }
+                });
+            });
+        });
+
+        function generatePdfReport() {
+            // แสดง loading
+            Swal.fire({
+                title: 'กำลังสร้างรายงาน...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            $.ajax({
+                url: '/Tenants/GeneratePdfReport',
+                type: 'GET',
+                xhrFields: {
+                    responseType: 'blob'
+                },
+                success: function (data) {
+                    // ปิด loading
+                    Swal.close();
+                    
+                    // สร้าง blob URL
+                    const blob = new Blob([data], { type: 'application/pdf' });
+                    const url = window.URL.createObjectURL(blob);
+                    
+                    // แสดง PDF ใน iframe
+                    $('#pdfViewer').attr('src', url);
+                    
+                    // เปิด modal
+                    const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
+                    pdfModal.show();
+                    
+                    // จัดการปุ่มดาวน์โหลด
+                    $('#downloadPdf').off('click').on('click', function() {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `tenants-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+                        link.click();
+                    });
+                    
+                    // ทำความสะอาด URL เมื่อปิด modal
+                    $('#pdfModal').on('hidden.bs.modal', function () {
+                        window.URL.revokeObjectURL(url);
+                        $('#pdfViewer').attr('src', '');
+                    });
+                },
+                error: function (xhr) {
+                    Swal.close();
+                    Swal.fire({
+                        title: 'เกิดข้อผิดพลาด!',
+                        text: 'ไม่สามารถสร้างรายงาน PDF ได้',
+                        icon: 'error',
+                        confirmButtonText: 'ตกลง'
+                    });
+                }
+            });
+        }
+
+        function clearForm() {
+            $('#tenantForm')[0].reset();
+            $('#tenant_id').val('');
+            $('#tenantModalLabel').text('เพิ่มผู้เช่าใหม่');
+        }
+
+        function editTenant(id) {
+            $.get('/Tenants/GetTenant/' + id, function (tenant) {
+                $('#tenant_id').val(tenant.id);
+                $('#name').val(tenant.name);
+                $('#email').val(tenant.email);
+                $('#phone_number').val(tenant.phone_number);
+                $('#tenantModalLabel').text('แก้ไขข้อมูลผู้เช่า');
+                $('#tenantModal').modal('show');
+            });
+        }
+
+        function confirmDelete(id) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "คุณต้องการลบผู้เช่านี้ใช่หรือไม่?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ใช่, ลบเลย',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/Tenants/Delete/' + id,
+                        type: 'DELETE',
+                        success: function (response) {
+                            $('#tenantsTable').DataTable().ajax.reload();
+                            Swal.fire({
+                                title: 'สำเร็จ!',
+                                text: 'ลบผู้เช่าเรียบร้อยแล้ว',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        },
+                        error: function (xhr) {
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: 'ไม่สามารถลบผู้เช่าได้ กรุณาลองใหม่อีกครั้ง',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+}

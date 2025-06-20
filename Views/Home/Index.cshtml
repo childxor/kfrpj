@@ -1,0 +1,316 @@
+﻿@{
+    ViewData["Title"] = "หน้าหลัก - ระบบจัดการห้องเช่า";
+}
+
+<!-- เพิ่ม Toast Container -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+    <div id="dbConnectionToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">สถานะการเชื่อมต่อ</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            @if (TempData["DbConnectionStatus"]?.ToString() == "success")
+            {
+                <div class="text-success">
+                    <i class="bi bi-check-circle-fill me-2"></i>เชื่อมต่อฐานข้อมูลสำเร็จ
+                </div>
+            }
+            else if (TempData["DbConnectionStatus"]?.ToString() == "error")
+            {
+                <div class="text-danger">
+                    <i class="bi bi-x-circle-fill me-2"></i>ไม่สามารถเชื่อมต่อฐานข้อมูลได้
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid py-4">
+    <!-- ส่วนแสดงภาพรวม -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">ภาพรวมระบบ</h2>
+                <div class="d-flex align-items-center">
+                    <label class="me-2">เลือกเดือน:</label>
+                    <select class="form-select" id="monthSelector" style="width: 200px;">
+                        <option value="2024-01">มกราคม 2024</option>
+                        <option value="2023-12">ธันวาคม 2023</option>
+                        <option value="2023-11">พฤศจิกายน 2023</option>
+                        <option value="2023-10">ตุลาคม 2023</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <!-- การ์ดแสดงสถิติ -->
+        <div class="col-md-3 mb-4">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">ห้องทั้งหมด</h6>
+                            <h2 class="mb-0">20</h2>
+                        </div>
+                        <i class="bi bi-building fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">ห้องว่าง</h6>
+                            <h2 class="mb-0">5</h2>
+                        </div>
+                        <i class="bi bi-door-open fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">ผู้เช่าทั้งหมด</h6>
+                            <h2 class="mb-0">15</h2>
+                        </div>
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">รายได้เดือนนี้</h6>
+                            <h2 class="mb-0">฿45,000</h2>
+                        </div>
+                        <i class="bi bi-cash-stack fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ส่วนแสดงข้อมูลล่าสุด -->
+    <div class="row">
+        <!-- รายการแจ้งซ่อมล่าสุด -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">แจ้งซ่อมล่าสุด</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">ห้อง 101 - แอร์ไม่เย็น</h6>
+                                <small class="text-danger">รอดำเนินการ</small>
+                            </div>
+                            <small>แจ้งเมื่อ 2 ชั่วโมงที่แล้ว</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">ห้อง 203 - น้ำรั่ว</h6>
+                                <small class="text-success">เสร็จสิ้น</small>
+                            </div>
+                            <small>แจ้งเมื่อ 1 วันที่แล้ว</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- การชำระเงินล่าสุด -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">การชำระเงินล่าสุด</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">ห้อง 102 - คุณสมชาย</h6>
+                                <span class="text-success">฿3,500</span>
+                            </div>
+                            <small>ชำระเมื่อ 1 วันที่แล้ว</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">ห้อง 201 - คุณสมหญิง</h6>
+                                <span class="text-success">฿3,500</span>
+                            </div>
+                            <small>ชำระเมื่อ 2 วันที่แล้ว</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ส่วนแสดงกราฟและสถิติ -->
+    <div class="row">
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">สถิติรายได้รายเดือน</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">งานที่ต้องทำ</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">ตรวจสอบค่าไฟ</h6>
+                                <span class="badge bg-danger">ด่วน</span>
+                            </div>
+                            <small>ห้อง 101, 102, 103</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">เก็บค่าเช่า</h6>
+                                <span class="badge bg-warning">พรุ่งนี้</span>
+                            </div>
+                            <small>ห้อง 201, 202</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">ทำสัญญาใหม่</h6>
+                                <span class="badge bg-info">สัปดาห์นี้</span>
+                            </div>
+                            <small>ห้อง 301</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- เพิ่ม SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // รอให้ DOM โหลดเสร็จก่อน
+        document.addEventListener('DOMContentLoaded', function() {
+            // แสดง SweetAlert2
+            @if (TempData["DbConnectionStatus"]?.ToString() == "success")
+            {
+                <text>
+                Swal.fire({
+                    title: 'เชื่อมต่อสำเร็จ!',
+                    text: 'เชื่อมต่อฐานข้อมูลสำเร็จ',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+                </text>
+            }
+            else if (TempData["DbConnectionStatus"]?.ToString() == "error")
+            {
+                <text>
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+                </text>
+            }
+
+            // ข้อมูลสำหรับกราฟ
+            const months = ['ตุลาคม', 'พฤศจิกายน', 'ธันวาคม', 'มกราคม'];
+            const revenueData = {
+                income: [40000, 42000, 42000, 45000],
+                expense: [4000, 4200, 4500, 5000],
+                profit: [36000, 37800, 37500, 40000]
+            };
+
+            // สร้างกราฟ
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            const revenueChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'รายได้',
+                            data: revenueData.income,
+                            backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                            borderColor: 'rgba(13, 110, 253, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'ค่าใช้จ่าย',
+                            data: revenueData.expense,
+                            backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                            borderColor: 'rgba(220, 53, 69, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'กำไร',
+                            data: revenueData.profit,
+                            backgroundColor: 'rgba(25, 135, 84, 0.5)',
+                            borderColor: 'rgba(25, 135, 84, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'สถิติรายได้รายเดือน'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '฿' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // จัดการการเปลี่ยนเดือน
+            const monthSelector = document.getElementById('monthSelector');
+            if (monthSelector) {
+                monthSelector.addEventListener('change', function(e) {
+                    // ตรงนี้จะเพิ่มโค้ดสำหรับอัพเดทข้อมูลตามเดือนที่เลือก
+                    console.log('เลือกเดือน:', e.target.value);
+                });
+            }
+        });
+    </script>
+}

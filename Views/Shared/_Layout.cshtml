@@ -1,0 +1,464 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ระบบจัดการห้องเช่า</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/kfrpj.styles.css" asp-append-version="true" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="~/lib/animate.css/animate.min.css" />
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="~/lib/datatables.net-bs5/dataTables.bootstrap5.min.css">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="~/lib/sweetalert2/sweetalert2.min.css">
+    <!-- Google Fonts สำหรับภาษาไทย -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&family=Prompt:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    @await RenderSectionAsync("Styles", required: false)
+
+    <!-- CSS สำหรับ dark mode -->
+    <style>
+        /* แก้ไขปัญหา z-index ของ dropdown */
+        .dropdown-menu {
+            z-index: 1030 !important;
+            animation-duration: 0.2s !important;
+            /* ทำให้ animation เร็วขึ้น */
+        }
+
+        .modal-backdrop.show {
+            display: none !important;
+        }
+
+        .navbar {
+            z-index: 1020 !important;
+            ห
+        }
+
+        /* เพิ่ม animation สำหรับ dropdown items */
+        .dropdown-item {
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            transform: translateX(5px);
+            background-color: var(--bs-primary);
+            color: white;
+        }
+
+        [data-bs-theme="dark"] {
+            color-scheme: dark;
+        }
+
+        [data-bs-theme="dark"] .card {
+            background-color: #2b3035;
+            border-color: #373b3e;
+        }
+
+        [data-bs-theme="dark"] .card-header {
+            background-color: #212529 !important;
+            border-color: #373b3e;
+        }
+
+        [data-bs-theme="dark"] .list-group-item {
+            background-color: #2b3035;
+            border-color: #373b3e;
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .list-group-item:hover {
+            background-color: #343a40;
+        }
+
+        [data-bs-theme="dark"] .text-dark {
+            color: #e9ecef !important;
+        }
+
+        [data-bs-theme="dark"] .bg-light {
+            background-color: #212529 !important;
+        }
+
+        [data-bs-theme="dark"] .navbar {
+            background-color: #212529 !important;
+        }
+
+        [data-bs-theme="dark"] .footer {
+            background-color: #212529;
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .border-top {
+            border-color: #373b3e !important;
+        }
+
+        [data-bs-theme="dark"] .border-bottom {
+            border-color: #373b3e !important;
+        }
+
+        [data-bs-theme="dark"] body {
+            background-color: #181a1b !important;
+            /* สีพื้นหลังหลัก */
+        }
+
+        [data-bs-theme="dark"] .container,
+        [data-bs-theme="dark"] .container-fluid {
+            background-color: transparent !important;
+            /* ให้โปร่งใสหรือสีเดียวกับ body */
+        }
+
+        /* ปรับสีตัวอักษรใน dark mode ให้มองเห็นชัด */
+        [data-bs-theme="dark"] .container,
+        [data-bs-theme="dark"] .container-fluid,
+        [data-bs-theme="dark"] h1,
+        [data-bs-theme="dark"] h2,
+        [data-bs-theme="dark"] h3,
+        [data-bs-theme="dark"] h4,
+        [data-bs-theme="dark"] h5,
+        [data-bs-theme="dark"] h6,
+        [data-bs-theme="dark"] label,
+        [data-bs-theme="dark"] p,
+        [data-bs-theme="dark"] .form-label,
+        [data-bs-theme="dark"] .text-dark,
+        [data-bs-theme="dark"] .text-secondary {
+            color: #e9ecef !important;
+            /* สีขาวอมเทา อ่านง่าย */
+        }
+
+        /* เพิ่มสไตล์สำหรับปุ่มออกจากระบบ */
+        #logoutButton {
+            color: #fff !important;
+            border-color: #fff !important;
+        }
+
+        #logoutButton:hover {
+            background-color: #fff !important;
+            color: var(--bs-primary) !important;
+        }
+
+        [data-bs-theme="dark"] #logoutButton {
+            color: #fff !important;
+            border-color: #fff !important;
+        }
+
+        [data-bs-theme="dark"] #logoutButton:hover {
+            background-color: #fff !important;
+            color: var(--bs-primary) !important;
+        }
+
+        /* สไตล์สำหรับตารางในโหมดสว่าง */
+        [data-bs-theme="light"] .table {
+            color: #212529;
+        }
+
+        [data-bs-theme="light"] .table-striped>tbody>tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        [data-bs-theme="light"] .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+
+        /* สไตล์สำหรับตารางในโหมดมืด */
+        [data-bs-theme="dark"] .table {
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .table-striped>tbody>tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.075);
+        }
+
+        /* ปรับแต่ง DataTables */
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_length,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_info,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_processing,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate {
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: #e9ecef !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #343a40 !important;
+            color: #fff !important;
+            border-color: #343a40 !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: #0d6efd !important;
+            color: #fff !important;
+            border-color: #0d6efd !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            color: #6c757d !important;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter input {
+            background-color: #343a40;
+            border-color: #495057;
+            color: #e9ecef;
+        }
+
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_length select {
+            background-color: #343a40;
+            border-color: #495057;
+            color: #e9ecef;
+        }
+
+        /* ปรับแต่งการ์ด */
+        [data-bs-theme="dark"] .card {
+            background-color: #2b3035;
+            border-color: #373b3e;
+        }
+
+        [data-bs-theme="dark"] .card-header {
+            background-color: #212529;
+            border-color: #373b3e;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary animate__animated animate__fadeInDown">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ระบบจัดการห้องเช่า</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
+                    aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    @if (Context.Session.GetString("UserId") != null)
+                    {
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-area="" asp-controller="Home"
+                                asp-action="Index">หน้าหลัก</a>
+                        </li>
+
+                        <!-- เมนูจัดการห้อง -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" id="roomDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                จัดการห้อง
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="roomDropdown">
+                                <li><a class="dropdown-item" id="roomList" href="/Rooms/Index">รายการห้องทั้งหมด</a>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider d-none">
+                                </li>
+                            </ul>
+                        </li>
+
+                        <!-- เมนูจัดการผู้เช่า -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" id="tenantDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                จัดการผู้เช่า
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="tenantDropdown">
+                                <li><a class="dropdown-item" href="/Tenants/Index">ข้อมูลผู้เช่าทั้งหมด</a></li>
+                            </ul>
+                        </li>
+
+                        <!-- เมนูการเงิน -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" id="financeDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                การเงิน
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="financeDropdown">
+                                <li><a class="dropdown-item" id="financeList" href="/Finance/Index">เก็บค่าเช่า</a></li>
+                                <li><a class="dropdown-item" href="#">ประวัติการชำระเงิน</a></li>
+                                <li><a class="dropdown-item" href="#">รายงานรายได้</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="#">ค่าใช้จ่าย</a></li>
+                            </ul>
+                        </li>
+
+                        <!-- เมนูแจ้งซ่อม -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" id="maintenanceDropdown"
+                                role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                แจ้งซ่อม
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="maintenanceDropdown">
+                                <li><a class="dropdown-item" href="#">รายการแจ้งซ่อม</a></li>
+                                <li><a class="dropdown-item" href="#">แจ้งซ่อมใหม่</a></li>
+                                <li><a class="dropdown-item" href="#">ติดตามสถานะ</a></li>
+                            </ul>
+                        </li>
+
+                        <!-- เมนูตั้งค่า -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" id="settingsDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                ตั้งค่า
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
+                                <li><a class="dropdown-item" href="#">ข้อมูลผู้ดูแลระบบ</a></li>
+                                <li><a class="dropdown-item" href="#">ตั้งค่าการแจ้งเตือน</a></li>
+                                <li><a class="dropdown-item" href="#">รายงานระบบ</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <!-- ย้ายสวิตช์ dark mode มาอยู่ที่ navbar -->
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="darkModeSwitch">
+                            <label class="form-check-label text-white" for="darkModeSwitch">
+                                <i class="bi bi-moon-stars"></i> โหมดมืด
+                            </label>
+                        </div>
+                        <!-- เพิ่มปุ่มออกจากระบบ -->
+                        <a href="/Authen/Logout" class="btn btn-outline-light" id="logoutButton">
+                            <i class="bi bi-box-arrow-right"></i> ออกจากระบบ
+                        </a>
+                    </div>
+                    }
+                    else
+                    {
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" asp-controller="Authen" asp-action="Login">
+                                <i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ
+                            </a>
+                        </li>
+                    </ul>
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container animate__animated animate__fadeIn">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted animate__animated animate__fadeInUp">
+        <div class="container">
+            &copy; 2024 - ระบบจัดการห้องเช่า - <a asp-area="" asp-controller="Home"
+                asp-action="Privacy">นโยบายความเป็นส่วนตัว</a>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <!-- DataTables JS -->
+    <script src="~/lib/datatables.net/jquery.dataTables.min.js"></script>
+    <script src="~/lib/datatables.net-bs5/dataTables.bootstrap5.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="~/lib/sweetalert2/sweetalert2.all.min.js"></script>
+    <!-- Chart.js -->
+    <script src="~/lib/chart.js/dist/chart.umd.js"></script>
+
+    <!-- JavaScript สำหรับ dark mode -->
+    <script>
+        // ฟังก์ชันสำหรับจัดการ dark mode
+        function setDarkMode(isDark) {
+            const html = document.documentElement;
+            if (isDark) {
+                html.setAttribute('data-bs-theme', 'dark');
+                document.getElementById('darkModeSwitch').checked = true;
+            } else {
+                html.setAttribute('data-bs-theme', 'light');
+                document.getElementById('darkModeSwitch').checked = false;
+            }
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+        }
+
+        // โหลดการตั้งค่า dark mode จาก localStorage
+        document.addEventListener('DOMContentLoaded', function () {
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            setDarkMode(darkMode);
+
+            // เพิ่ม animation ให้กับ dropdown menu
+            const dropdownMenus = document.querySelectorAll('.dropdown-menu');
+            dropdownMenus.forEach(menu => {
+                menu.classList.add('animate__animated', 'animate__fadeIn');
+            });
+        });
+
+        // จัดการการเปลี่ยน dark mode
+        document.getElementById('darkModeSwitch').addEventListener('change', function (e) {
+            setDarkMode(e.target.checked);
+        });
+    </script>
+
+    <!-- เพิ่ม JavaScript สำหรับตรวจสอบ Session -->
+    <script>
+        // ฟังก์ชันตรวจสอบ Session
+        function checkSession() {
+            // ตรวจสอบว่าอยู่ที่หน้า login หรือไม่
+            if (window.location.pathname === '/Authen/Login' || window.location.pathname === '/Authen/Register') {
+                return; // ถ้าอยู่ที่หน้า login ให้ไม่ต้องตรวจสอบ session
+            }
+
+            fetch('/Authen/CheckSession', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        // ถ้า session หมดอายุ ให้ redirect ไปหน้า login
+                        window.location.href = '/Authen/Login';
+                    }
+                })
+                .catch(error => {
+                    console.error('เกิดข้อผิดพลาดในการตรวจสอบ session:', error);
+                    window.location.href = '/Authen/Login';
+                });
+        }
+
+        // ตรวจสอบ session ทุก 1 นาที
+        setInterval(checkSession, 60000);
+
+        //# เมื่อ Logout ให้ swal แจ้งเตือน
+        $(document).ready(function () {
+            $('#logoutButton').click(function (e) {
+                event.preventDefault();
+                Swal.fire({
+                    title: 'ยืนยันการออกจากระบบ',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'ยืนยัน',
+                    cancelButtonText: 'ยกเลิก',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = '/Authen/Logout';
+                    }
+                });
+            });
+        });
+        // ตรวจสอบ session เมื่อมีการโหลดหน้า
+        document.addEventListener('DOMContentLoaded', function () {
+            checkSession();
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+
+</html>
