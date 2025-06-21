@@ -143,7 +143,9 @@ namespace kfrpj.Controllers
                 var currentMonth = DateTime.Now.Month;
                 var currentYear = DateTime.Now.Year;
 
-                _logger.LogInformation($"เริ่มดึงข้อมูล Mission สำหรับเดือน {currentMonth}/{currentYear}");
+                _logger.LogInformation(
+                    $"เริ่มดึงข้อมูล Mission สำหรับเดือน {currentMonth}/{currentYear}"
+                );
 
                 var rooms = await _context
                     .rooms_list.Where(r => r.record_status == "N")
@@ -164,25 +166,51 @@ namespace kfrpj.Controllers
                     }
                     catch (Exception roomEx)
                     {
-                        _logger.LogError(roomEx, $"เกิดข้อผิดพลาดในการดึงข้อมูลห้อง {room.room_name}");
+                        _logger.LogError(
+                            roomEx,
+                            $"เกิดข้อผิดพลาดในการดึงข้อมูลห้อง {room.room_name}"
+                        );
                         // เพิ่มข้อมูลพื้นฐานแทน
-                        missionData.Add(new
-                        {
-                            roomId = room.room_id,
-                            roomName = room.room_name,
-                            tenantName = "ไม่ระบุ",
-                            roomCharge = new { amount = room.room_price, isPaid = false, id = (int?)null, dueDate = (DateTime?)null, daysOverdue = 0 },
-                            waterBill = new { amount = 0m, isPaid = false, id = (int?)null, units = 0, meterDate = (DateTime?)null },
-                            electricBill = new { amount = 0m, isPaid = false, id = (int?)null, units = 0, meterDate = (DateTime?)null },
-                            totalAmount = room.room_price,
-                            paidAmount = 0m,
-                            pendingAmount = room.room_price,
-                            isFullyPaid = false,
-                            isPartiallyPaid = false,
-                            paymentProgress = 0,
-                            priority = 2,
-                            lastUpdateDate = DateTime.MinValue
-                        });
+                        missionData.Add(
+                            new
+                            {
+                                roomId = room.room_id,
+                                roomName = room.room_name,
+                                tenantName = "ไม่ระบุ",
+                                roomCharge = new
+                                {
+                                    amount = room.room_price,
+                                    isPaid = false,
+                                    id = (int?)null,
+                                    dueDate = (DateTime?)null,
+                                    daysOverdue = 0,
+                                },
+                                waterBill = new
+                                {
+                                    amount = 0m,
+                                    isPaid = false,
+                                    id = (int?)null,
+                                    units = 0,
+                                    meterDate = (DateTime?)null,
+                                },
+                                electricBill = new
+                                {
+                                    amount = 0m,
+                                    isPaid = false,
+                                    id = (int?)null,
+                                    units = 0,
+                                    meterDate = (DateTime?)null,
+                                },
+                                totalAmount = room.room_price,
+                                paidAmount = 0m,
+                                pendingAmount = room.room_price,
+                                isFullyPaid = false,
+                                isPartiallyPaid = false,
+                                paymentProgress = 0,
+                                priority = 2,
+                                lastUpdateDate = DateTime.MinValue,
+                            }
+                        );
                     }
                 }
 
@@ -196,7 +224,9 @@ namespace kfrpj.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูล Mission");
-                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลได้: " + ex.Message });
+                return Json(
+                    new { success = false, message = "ไม่สามารถดึงข้อมูลได้: " + ex.Message }
+                );
             }
         }
 
@@ -215,7 +245,7 @@ namespace kfrpj.Controllers
                         water_meter_id = w.water_meter_id,
                         room_id = w.room_id,
                         room_name = w.Room.room_name,
-                        water_units = w.water_units,
+                        water_units = w.people_count,
                         water_bill = w.water_bill,
                         is_paid = w.is_paid,
                         meter_date = w.meter_date.ToString("yyyy-MM-dd"),
@@ -247,8 +277,8 @@ namespace kfrpj.Controllers
 
                 var waterRate = await GetWaterRate();
 
-                // คำนวณค่าน้ำตามจำนวนคน
-                waterBill.water_bill = waterBill.water_units * waterRate;
+                // คำนวณค่าน้ำตามจำนวนหน่วย
+                waterBill.water_bill = waterBill.people_count * waterRate;
                 waterBill.meter_date = DateTime.Now;
                 waterBill.created_at = DateTime.Now;
                 waterBill.created_by = HttpContext.Session.GetString("Username") ?? "System";
@@ -259,7 +289,7 @@ namespace kfrpj.Controllers
 
                 // Log การทำงาน
                 _logger.LogInformation(
-                    $"สร้างข้อมูลค่าน้ำใหม่ ห้อง: {waterBill.room_id}, จำนวนคน: {waterBill.water_units}"
+                    $"สร้างข้อมูลค่าน้ำใหม่ ห้อง: {waterBill.room_id}, จำนวนคน: {waterBill.people_count}"
                 );
 
                 return Json(new { success = true, message = "บันทึกข้อมูลค่าน้ำเรียบร้อยแล้ว" });
@@ -364,8 +394,8 @@ namespace kfrpj.Controllers
                         charge_month = r.charge_month.ToString("yyyy-MM"),
                         is_paid = r.is_paid,
                         due_date = r.due_date.ToString("yyyy-MM-dd"),
-                        paid_date = r.paid_date != null
-                            ? r.paid_date.Value.ToString("yyyy-MM-dd")
+                        paid_date = r.payment_date != null
+                            ? r.payment_date.Value.ToString("yyyy-MM-dd")
                             : null,
                         notes = r.notes,
                         created_at = r.created_at.ToString("dd/MM/yyyy HH:mm"),
@@ -448,7 +478,7 @@ namespace kfrpj.Controllers
                 if (roomCharge != null && !roomCharge.is_paid)
                 {
                     roomCharge.is_paid = true;
-                    roomCharge.paid_date = DateTime.Now;
+                    roomCharge.payment_date = DateTime.Now;
                     roomCharge.updated_at = DateTime.Now;
                     roomCharge.updated_by = username;
                     updateCount++;
@@ -735,106 +765,108 @@ namespace kfrpj.Controllers
             int year
         )
         {
-            int roomId = room.room_id;
-
             // ดึงข้อมูลค่าห้อง
-            var roomCharge = await _context
-                .room_charges_list.Where(rc =>
-                    rc.room_id == roomId
+            var roomCharge = await _context.room_charges_list
+                .Where(rc =>
+                    rc.room_id == room.room_id
                     && rc.charge_month.Month == month
                     && rc.charge_month.Year == year
                     && rc.record_status == "N"
                 )
+                .OrderByDescending(rc => rc.created_at)
                 .FirstOrDefaultAsync();
 
-            // ดึงข้อมูลค่าน้ำล่าสุด
-            var waterBill = await _context
-                .water_meters_list.Where(w =>
-                    w.room_id == roomId
-                    && w.meter_date.Month == month
-                    && w.meter_date.Year == year
-                    && w.record_status == "N"
+            // ดึงข้อมูลค่าน้ำ
+            var waterBill = await _context.water_meters_list
+                .Where(wm =>
+                    wm.room_id == room.room_id
+                    && wm.meter_date.Month == month
+                    && wm.meter_date.Year == year
+                    && wm.record_status == "N"
                 )
-                .OrderByDescending(w => w.meter_date)
+                .OrderByDescending(wm => wm.created_at)
                 .FirstOrDefaultAsync();
 
-            // ดึงข้อมูลค่าไฟล่าสุด
-            var electricBill = await _context
-                .electric_meters_list.Where(e =>
-                    e.room_id == roomId
-                    && e.meter_date.Month == month
-                    && e.meter_date.Year == year
-                    && e.record_status == "N"
+            // ดึงข้อมูลค่าไฟ
+            var electricBill = await _context.electric_meters_list
+                .Where(em =>
+                    em.room_id == room.room_id
+                    && em.meter_date.Month == month
+                    && em.meter_date.Year == year
+                    && em.record_status == "N"
                 )
-                .OrderByDescending(e => e.meter_date)
+                .OrderByDescending(em => em.created_at)
                 .FirstOrDefaultAsync();
 
-            // คำนวณยอดเงิน
-            var roomChargeAmount = roomCharge?.room_price ?? room.room_price;
-            var waterAmount = waterBill?.water_bill ?? 0;
-            var electricAmount = electricBill?.electric_bill ?? 0;
-            var totalAmount = roomChargeAmount + waterAmount + electricAmount;
+            // ดึงข้อมูลผู้เช่า
+            var tenantName = await GetTenantNameByRoomId(room.room_id);
 
-            // สถานะการจ่าย
-            var roomChargePaid = roomCharge?.is_paid ?? false;
-            var waterPaid = waterBill?.is_paid ?? false;
-            var electricPaid = electricBill?.is_paid ?? false;
+            // คำนวณวันครบกำหนด
+            var dueDate = roomCharge?.due_date ?? DateTime.Now;
+            var daysOverdue = roomCharge?.is_paid != true
+                ? Math.Max(0, (DateTime.Now - dueDate).Days)
+                : 0;
 
-            var paidAmount = 0m;
-            if (roomChargePaid)
-                paidAmount += roomChargeAmount;
-            if (waterPaid)
-                paidAmount += waterAmount;
-            if (electricPaid)
-                paidAmount += electricAmount;
+            // คำนวณยอดรวม
+            var totalAmount =
+                (roomCharge?.room_price ?? 0)
+                + (waterBill?.water_bill ?? 0)
+                + (electricBill?.electric_bill ?? 0);
 
-            var isFullyPaid = roomChargePaid && waterPaid && electricPaid;
-            var isPartiallyPaid = (roomChargePaid || waterPaid || electricPaid) && !isFullyPaid;
+            // คำนวณยอดค้างชำระ
+            var pendingAmount =
+                (roomCharge?.is_paid != true ? roomCharge?.room_price ?? 0 : 0)
+                + (waterBill?.is_paid != true ? waterBill?.water_bill ?? 0 : 0)
+                + (electricBill?.is_paid != true ? electricBill?.electric_bill ?? 0 : 0);
 
-            // ข้อมูลเพิ่มเติม
-            var daysOverdue = 0;
-            if (roomCharge != null && !roomCharge.is_paid)
-            {
-                daysOverdue = Math.Max(0, (DateTime.Now - roomCharge.due_date).Days);
-            }
+            // คำนวณความคืบหน้า
+            var paymentProgress = totalAmount > 0
+                ? Math.Round(((totalAmount - pendingAmount) / totalAmount) * 100, 0)
+                : 0;
+
+            // สถานะการชำระ
+            var isFullyPaid = pendingAmount == 0 && totalAmount > 0;
+            var isPartiallyPaid = pendingAmount > 0 && pendingAmount < totalAmount;
+
+            // จัดลำดับความสำคัญ
+            var priority = GetRoomPriority(daysOverdue, isFullyPaid, isPartiallyPaid);
 
             return new
             {
                 roomId = room.room_id,
                 roomName = room.room_name,
-                tenantName = await GetTenantNameByRoomId(room.room_id),
+                tenantName = tenantName,
+                totalAmount = totalAmount,
+                pendingAmount = pendingAmount,
+                paymentProgress = paymentProgress,
+                isFullyPaid = isFullyPaid,
+                isPartiallyPaid = isPartiallyPaid,
+                priority = priority,
                 roomCharge = new
                 {
-                    amount = roomChargeAmount,
-                    isPaid = roomChargePaid,
                     id = roomCharge?.room_charge_id,
+                    amount = roomCharge?.room_price ?? 0,
+                    isPaid = roomCharge?.is_paid ?? false,
                     dueDate = roomCharge?.due_date,
                     daysOverdue = daysOverdue,
                 },
                 waterBill = new
                 {
-                    amount = waterAmount,
-                    isPaid = waterPaid,
                     id = waterBill?.water_meter_id,
-                    units = waterBill?.water_units ?? 0,
+                    amount = waterBill?.water_bill ?? 0,
+                    isPaid = waterBill?.is_paid ?? false,
+                    units = waterBill?.people_count ?? 0,
                     meterDate = waterBill?.meter_date,
                 },
                 electricBill = new
                 {
-                    amount = electricAmount,
-                    isPaid = electricPaid,
                     id = electricBill?.electric_meter_id,
+                    amount = electricBill?.electric_bill ?? 0,
+                    isPaid = electricBill?.is_paid ?? false,
                     units = electricBill?.electric_units ?? 0,
                     meterDate = electricBill?.meter_date,
                 },
-                totalAmount = totalAmount,
-                paidAmount = paidAmount,
-                pendingAmount = totalAmount - paidAmount,
-                isFullyPaid = isFullyPaid,
-                isPartiallyPaid = isPartiallyPaid,
-                paymentProgress = totalAmount > 0 ? (int)((paidAmount / totalAmount) * 100) : 0,
-                priority = GetRoomPriority(daysOverdue, isFullyPaid, isPartiallyPaid),
-                lastUpdateDate = new[]
+                lastUpdated = new[]
                 {
                     roomCharge?.updated_at,
                     waterBill?.updated_at,
@@ -848,19 +880,44 @@ namespace kfrpj.Controllers
 
         private async Task<string> GetTenantNameByRoomId(int roomId)
         {
-            // สำหรับอนาคต เมื่อมีตาราง tenant-room relationship
-            // var tenant = await _context.tenants_list
-            //     .Where(t => t.room_id == roomId && t.record_status == "N")
-            //     .FirstOrDefaultAsync();
-            // return tenant?.name ?? "ไม่มีผู้เช่า";
+            try
+            {
+                var tenant = await _context
+                    .room_tenant_rel.Include(rt => rt.Tenant)
+                    .Where(rt =>
+                        rt.room_id == roomId && rt.record_status == "N" && rt.status == "active"
+                    )
+                    .OrderByDescending(rt => rt.created_at)
+                    .FirstOrDefaultAsync();
 
-            return "ผู้เช่า"; // ค่าเริ่มต้นชั่วคราว
+                return tenant?.Tenant?.name ?? "ไม่มีผู้เช่า";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลผู้เช่าห้อง {roomId}");
+                return "ไม่มีผู้เช่า";
+            }
         }
 
         private string GetTenantName(int roomId)
         {
-            // ฟังก์ชันเดียวกับด้านบน แต่แบบ sync
-            return "ผู้เช่า";
+            try
+            {
+                var tenant = _context
+                    .room_tenant_rel.Include(rt => rt.Tenant)
+                    .Where(rt =>
+                        rt.room_id == roomId && rt.record_status == "N" && rt.status == "active"
+                    )
+                    .OrderByDescending(rt => rt.created_at)
+                    .FirstOrDefault();
+
+                return tenant?.Tenant?.name ?? "ไม่มีผู้เช่า";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลผู้เช่าห้อง {roomId}");
+                return "ไม่มีผู้เช่า";
+            }
         }
 
         private int GetRoomPriority(int daysOverdue, bool isFullyPaid, bool isPartiallyPaid)
@@ -1182,7 +1239,7 @@ namespace kfrpj.Controllers
             if (roomCharge != null)
             {
                 roomCharge.is_paid = true;
-                roomCharge.paid_date = DateTime.Now;
+                roomCharge.payment_date = DateTime.Now;
                 roomCharge.updated_at = DateTime.Now;
                 roomCharge.updated_by = username;
                 updateCount++;
@@ -1437,7 +1494,7 @@ namespace kfrpj.Controllers
                 var waterRate = await GetWaterRate();
 
                 existingWaterBill.room_id = roomId;
-                existingWaterBill.water_units = peopleCount; // ใช้เป็นจำนวนคน
+                existingWaterBill.people_count = peopleCount; // จำนวนคน
                 existingWaterBill.water_bill = peopleCount * waterRate;
                 existingWaterBill.notes = notes;
                 existingWaterBill.updated_at = DateTime.Now;
@@ -1755,7 +1812,7 @@ namespace kfrpj.Controllers
                     month = rc.charge_month.ToString("MM/yyyy"),
                     amount = rc.room_price,
                     isPaid = rc.is_paid,
-                    paidDate = rc.paid_date,
+                    paidDate = rc.payment_date,
                     type = "ค่าห้อง",
                 })
                 .ToListAsync();
@@ -1769,7 +1826,7 @@ namespace kfrpj.Controllers
                 {
                     month = w.meter_date.ToString("MM/yyyy"),
                     amount = w.water_bill,
-                    units = w.water_units,
+                    units = w.people_count,
                     isPaid = w.is_paid,
                     type = "ค่าน้ำ",
                 })
@@ -1803,8 +1860,7 @@ namespace kfrpj.Controllers
             water_meters_list waterMeter,
             int? excludeId = null
         )
-        { 
-
+        {
             var query = _context.water_meters_list.Where(w =>
                 w.room_id == waterMeter.room_id
                 && w.meter_date.Month == waterMeter.meter_date.Month

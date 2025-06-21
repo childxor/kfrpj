@@ -272,6 +272,7 @@
                 <div class="modal-body">
                     <input type="hidden" id="water_bill_id" name="water_bill_id">
                     <input type="hidden" id="water_room_id" name="room_id">
+                    <input type="hidden" id="water_units" name="water_units">
                     <div class="mb-3">
                         <label class="form-label">ห้อง</label>
                         <input type="text" class="form-control" id="water_room_name" readonly>
@@ -316,6 +317,7 @@
                 <div class="modal-body">
                     <input type="hidden" id="electric_bill_id" name="electric_bill_id">
                     <input type="hidden" id="electric_room_id" name="room_id">
+                    <input type="hidden" id="meter_date" name="meter_date">
                     <div class="mb-3">
                         <label class="form-label">ห้อง</label>
                         <input type="text" class="form-control" id="electric_room_name" readonly>
@@ -406,6 +408,76 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal สำหรับจัดการผู้เช่า -->
+<div class="modal fade" id="tenantModal" tabindex="-1" aria-labelledby="tenantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tenantModalLabel">จัดการผู้เช่า</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="tenant_room_id" name="tenant_room_id">
+                
+                <div id="current_tenant_info" class="mb-4">
+                    <div class="alert alert-info" id="no_tenant_alert">
+                        <i class="bi bi-info-circle me-2"></i>ยังไม่มีผู้เช่าสำหรับห้องนี้
+                    </div>
+                    <div id="tenant_details" style="display: none;">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="bi bi-person-circle me-2"></i>ข้อมูลผู้เช่าปัจจุบัน</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2"><strong>ชื่อ-นามสกุล:</strong> <span id="current_tenant_name"></span></p>
+                                <p class="mb-2"><strong>อีเมล:</strong> <span id="current_tenant_email"></span></p>
+                                <p class="mb-2"><strong>เบอร์โทรศัพท์:</strong> <span id="current_tenant_phone"></span></p>
+                                <p class="mb-0"><strong>วันที่เริ่มสัญญา:</strong> <span id="current_tenant_start_date"></span></p>
+                                <p class="mb-0"><strong>วันที่สิ้นสุดสัญญา:</strong> <span id="current_tenant_end_date"></span></p>
+                            </div>
+                        </div>
+                        <div class="text-end mt-2">
+                            <button class="btn btn-danger" id="remove_tenant_btn">
+                                <i class="bi bi-person-x-fill me-2"></i>ยกเลิกผู้เช่า
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="update_tenant_section">
+                    <h6><i class="bi bi-person-plus-fill me-2"></i>เลือกผู้เช่าใหม่</h6>
+                    
+                    <div class="mb-3">
+                        <label for="tenant_select" class="form-label">เลือกผู้ใช้</label>
+                        <select class="form-select" id="tenant_select">
+                            <option value="">-- เลือกผู้เช่า --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="tenant_start_date" class="form-label">วันที่เริ่มสัญญา</label>
+                            <input type="date" class="form-control" id="tenant_start_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="tenant_end_date" class="form-label">วันที่สิ้นสุดสัญญา</label>
+                            <input type="date" class="form-control" id="tenant_end_date">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>ยกเลิก
+                </button>
+                <button type="button" class="btn btn-primary" id="save_tenant_btn">
+                    <i class="bi bi-save me-1"></i>บันทึก
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -783,6 +855,9 @@
                                                 <li><a class="dropdown-item" href="#" onclick="printRoomReceipt(${room.roomId})">
                                                     <i class="bi bi-receipt me-2"></i>พิมพ์ใบเสร็จ
                                                 </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="manageTenant(${room.roomId}, '${room.roomName}')">
+                                                    <i class="bi bi-person-fill me-2"></i>จัดการผู้เช่า
+                                                </a></li>
                                             </ul>
                                         </div>
                                     </div>
@@ -897,10 +972,11 @@
             const oldMeter = parseInt($('#electric_old_meter').val()) || 0;
             const newMeter = parseInt($('#electric_new_meter').val()) || 0;
             const units = Math.max(0, newMeter - oldMeter);
-            const bill = units * rates.electricRate;
+            const electricRate = rates.electricRate || 5;
+            const bill = units * electricRate;
 
             $('#electric_units').val(units);
-            $('#electric_bill').val(bill);
+            $('#electric_bill_amount').val(bill);
         }
 
         function handleWaterMeterSubmit(e) {
@@ -1457,6 +1533,7 @@
             $('#water_room_id').val(roomId);
             $('#water_room_name').val(roomName);
             $('#water_people_count').val(1);
+            // เพิ่มการตั้งค่า water_units ให้เท่ากับ people_count
             calculateWaterBillByPeople();
             $('#water_bill_notes').val('');
             $('#waterBillModalLabel').text('เพิ่มค่าน้ำ - ' + roomName);
@@ -1486,6 +1563,9 @@
             $('#electric_units').val(0);
             $('#electric_bill_amount').val(0);
             $('#electric_bill_notes').val('');
+            // เพิ่มฟิลด์วันที่
+            const now = moment().format('YYYY-MM-DD');
+            $('#meter_date').val(now);
             $('#electricBillModalLabel').text('เพิ่มค่าไฟ - ' + roomName);
             $('#electricBillModal').modal('show');
         };
@@ -1512,10 +1592,12 @@
             const waterRate = rates.waterRate || 150; // ใช้อัตราจาก settings หรือ 150 บาท/คน
             const totalBill = peopleCount * waterRate;
             $('#water_bill_amount').val(totalBill);
+            $('#water_units').val(peopleCount); // ตั้งค่า water_units ให้เท่ากับจำนวนคน
         }
 
         // Event handlers สำหรับฟอร์มใหม่
         $('#water_people_count').on('input', calculateWaterBillByPeople);
+        $('#electric_old_meter, #electric_new_meter').on('input', calculateElectricBill);
 
         // ฟอร์มสำหรับค่าน้ำ
         $('#waterBillForm').on('submit', function(e) {
@@ -1531,7 +1613,7 @@
                 type: 'POST',
                 data: formData,
                 processData: false,
-                contentType: false,
+                contentType: false, 
                 success: function (response) {
                     if (response.success) {
                         $('#waterBillModal').modal('hide');
@@ -1554,7 +1636,7 @@
             const billId = $('#electric_bill_id').val();
             const isEdit = billId && billId.trim() !== '';
             
-            const url = isEdit ? `/Finance/UpdateElectricBill/${billId}` : '/Finance/CreateElectricBill';
+            const url = isEdit ? `/Finance/UpdateElectricMeter/${billId}` : '/Finance/CreateElectricMeter';
             
             $.ajax({
                 url: url,
@@ -1914,5 +1996,166 @@
                 }
             });
         }
+
+        // ฟังก์ชันสำหรับจัดการผู้เช่า
+        window.manageTenant = function(roomId, roomName) {
+            $('#tenant_room_id').val(roomId);
+            $('#tenantModalLabel').text('จัดการผู้เช่า - ห้อง ' + roomName);
+            
+            // เคลียร์ค่า
+            $('#tenant_select').val('');
+            $('#tenant_start_date').val('');
+            $('#tenant_end_date').val('');
+            
+            // โหลดข้อมูลผู้เช่าปัจจุบัน
+            loadCurrentTenant(roomId);
+            
+            // โหลดรายชื่อผู้ใช้
+            loadAvailableUsers();
+            
+            // แสดง modal
+            $('#tenantModal').modal('show');
+        };
+
+        function loadCurrentTenant(roomId) {
+            $.get('/Rooms/GetRoomTenant', { roomId: roomId }, function(response) {
+                if (response.success) {
+                    if (response.hasTenant) {
+                        // มีผู้เช่า
+                        $('#current_tenant_name').text(response.tenant.fullname || '-');
+                        $('#current_tenant_email').text(response.tenant.email || '-');
+                        $('#current_tenant_phone').text(response.tenant.phone || '-');
+                        $('#current_tenant_start_date').text(response.tenant.start_date || '-');
+                        $('#current_tenant_end_date').text(response.tenant.end_date || '-');
+                        
+                        $('#no_tenant_alert').hide();
+                        $('#tenant_details').show();
+                    } else {
+                        // ไม่มีผู้เช่า
+                        $('#no_tenant_alert').show();
+                        $('#tenant_details').hide();
+                    }
+                } else {
+                    showError(response.message || 'ไม่สามารถโหลดข้อมูลผู้เช่าได้');
+                }
+            }).fail(function() {
+                showError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้เช่า');
+            });
+        }
+
+        function loadAvailableUsers() {
+            $.get('/Rooms/GetAvailableUsers', function(response) {
+                if (response.success && response.users) {
+                    const selectElement = $('#tenant_select');
+                    selectElement.html('<option value="">-- เลือกผู้เช่า --</option>');
+                    
+                    response.users.forEach(function(user) {
+                        selectElement.append(`<option value="${user.id}">${user.fullname || user.email || 'ผู้ใช้ ' + user.id}</option>`);
+                    });
+                } else {
+                    showError(response.message || 'ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
+                }
+            }).fail(function() {
+                showError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้');
+            });
+        }
+
+        $('#save_tenant_btn').on('click', function() {
+            const roomId = parseInt($('#tenant_room_id').val());
+            const userId = parseInt($('#tenant_select').val());
+            const startDate = $('#tenant_start_date').val();
+            const endDate = $('#tenant_end_date').val();
+            
+            if (!roomId) {
+                showError('ไม่พบข้อมูลห้อง');
+                return;
+            }
+            
+            if (!userId) {
+                showError('กรุณาเลือกผู้เช่า');
+                return;
+            }
+            
+            $.ajax({
+                url: '/Rooms/UpdateRoomTenant',
+                type: 'POST',
+                data: {
+                    roomId: roomId,
+                    userId: userId,
+                    startDate: startDate || null,
+                    endDate: endDate || null
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#tenantModal').modal('hide');
+                        showSuccess(response.message || 'อัปเดตผู้เช่าเรียบร้อยแล้ว');
+                        
+                        // รีโหลดข้อมูล Mission ทั้งหมด
+                        refreshAllData();
+                    } else {
+                        showError(response.message || 'ไม่สามารถอัปเดตผู้เช่าได้');
+                    }
+                },
+                error: function() {
+                    showError('เกิดข้อผิดพลาดในการอัปเดตผู้เช่า');
+                }
+            });
+        });
+
+        $('#remove_tenant_btn').on('click', function() {
+            const roomId = parseInt($('#tenant_room_id').val());
+            
+            if (!roomId) {
+                showError('ไม่พบข้อมูลห้อง');
+                return;
+            }
+            
+            Swal.fire({
+                title: 'ยืนยันการยกเลิกผู้เช่า',
+                text: 'คุณต้องการยกเลิกผู้เช่าห้องนี้ใช่หรือไม่?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'ใช่, ยกเลิกผู้เช่า',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/Rooms/RemoveRoomTenant',
+                        type: 'POST',
+                        data: { roomId: roomId },
+                        success: function(response) {
+                            if (response.success) {
+                                $('#tenantModal').modal('hide');
+                                showSuccess(response.message || 'ยกเลิกผู้เช่าเรียบร้อยแล้ว');
+                                
+                                // รีโหลดข้อมูล Mission ทั้งหมด
+                                refreshAllData();
+                            } else {
+                                showError(response.message || 'ไม่สามารถยกเลิกผู้เช่าได้');
+                            }
+                        },
+                        error: function() {
+                            showError('เกิดข้อผิดพลาดในการยกเลิกผู้เช่า');
+                        }
+                    });
+                }
+            });
+        });
+
+        // สำหรับค่าเริ่มต้นที่รีเฟรชทุกครั้งที่เปิด modal
+        $('#tenantModal').on('shown.bs.modal', function() {
+            const today = moment().format('YYYY-MM-DD');
+            const oneYearLater = moment().add(1, 'year').format('YYYY-MM-DD');
+            
+            if (!$('#tenant_start_date').val()) {
+                $('#tenant_start_date').val(today);
+            }
+            
+            if (!$('#tenant_end_date').val()) {
+                $('#tenant_end_date').val(oneYearLater);
+            }
+        });
     </script>
 }

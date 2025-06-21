@@ -1,4 +1,5 @@
 // Models/finance/water_meters.cs
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using kfrpj.Models.rooms;
@@ -9,7 +10,7 @@ namespace kfrpj.Models.finance
     public class water_meters_list
     {
         [Key]
-        [Display(Name = "รหัสค่าน้ำ")]
+        [Display(Name = "รหัสมิเตอร์น้ำ")]
         public int water_meter_id { get; set; }
 
         [Required]
@@ -17,18 +18,14 @@ namespace kfrpj.Models.finance
         public int room_id { get; set; }
 
         [Required]
-        [Display(Name = "วันที่บันทึก")]
+        [Display(Name = "วันที่จดมิเตอร์")]
         public DateTime meter_date { get; set; }
 
         [Display(Name = "จำนวนคน")]
-        public int people_count { get; set; } = 0;
+        public int people_count { get; set; }
 
         [Required]
-        [Display(Name = "จำนวนคน")]
-        public int water_units { get; set; } // ใช้เป็นจำนวนคนแทน
-
         [Display(Name = "ค่าน้ำ")]
-        [Column(TypeName = "decimal(18,2)")]
         public decimal water_bill { get; set; }
 
         [Display(Name = "สถานะการชำระ")]
@@ -37,7 +34,6 @@ namespace kfrpj.Models.finance
         [Display(Name = "หมายเหตุ")]
         public string? notes { get; set; }
 
-        // คอลัมน์มาตรฐาน
         [Required]
         [Display(Name = "วันที่สร้าง")]
         public DateTime created_at { get; set; }
@@ -64,7 +60,7 @@ namespace kfrpj.Models.finance
     public class electric_meters_list
     {
         [Key]
-        [Display(Name = "รหัสมิเตอร์ไฟ")]
+        [Display(Name = "รหัสมิเตอร์ไฟฟ้า")]
         public int electric_meter_id { get; set; }
 
         [Required]
@@ -72,7 +68,7 @@ namespace kfrpj.Models.finance
         public int room_id { get; set; }
 
         [Required]
-        [Display(Name = "วันที่บันทึก")]
+        [Display(Name = "วันที่จดมิเตอร์")]
         public DateTime meter_date { get; set; }
 
         [Required]
@@ -87,7 +83,6 @@ namespace kfrpj.Models.finance
         public int electric_units { get; set; }
 
         [Display(Name = "ค่าไฟ")]
-        [Column(TypeName = "decimal(18,2)")]
         public decimal electric_bill { get; set; }
 
         [Display(Name = "สถานะการชำระ")]
@@ -96,63 +91,6 @@ namespace kfrpj.Models.finance
         [Display(Name = "หมายเหตุ")]
         public string? notes { get; set; }
 
-        // คอลัมน์มาตรฐาน
-        [Required]
-        [Display(Name = "วันที่สร้าง")]
-        public DateTime created_at { get; set; }
-
-        [Display(Name = "ผู้สร้าง")]
-        public string? created_by { get; set; }
-
-        [Display(Name = "วันที่แก้ไข")]
-        public DateTime? updated_at { get; set; }
-
-        [Display(Name = "ผู้แก้ไข")]
-        public string? updated_by { get; set; }
-
-        [Required]
-        [Display(Name = "สถานะการใช้งาน")]
-        public string record_status { get; set; } = "N";
-
-        // Navigation properties
-        [ForeignKey("room_id")]
-        public virtual rooms_list? Room { get; set; }
-    }
-
-    [Table("room_charges_list")]
-    public class room_charges_list
-    {
-        [Key]
-        [Display(Name = "รหัสค่าห้อง")]
-        public int room_charge_id { get; set; }
-
-        [Required]
-        [Display(Name = "รหัสห้อง")]
-        public int room_id { get; set; }
-
-        [Required]
-        [Display(Name = "เดือน")]
-        public DateTime charge_month { get; set; }
-
-        [Required]
-        [Display(Name = "ค่าห้อง")]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal room_price { get; set; }
-
-        [Required]
-        [Display(Name = "วันที่ครบกำหนด")]
-        public DateTime due_date { get; set; }
-
-        [Display(Name = "สถานะการชำระ")]
-        public bool is_paid { get; set; } = false;
-
-        [Display(Name = "วันที่ชำระ")]
-        public DateTime? paid_date { get; set; }
-
-        [Display(Name = "หมายเหตุ")]
-        public string? notes { get; set; }
-
-        // คอลัมน์มาตรฐาน
         [Required]
         [Display(Name = "วันที่สร้าง")]
         public DateTime created_at { get; set; }

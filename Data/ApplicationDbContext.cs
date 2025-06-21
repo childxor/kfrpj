@@ -21,6 +21,8 @@ namespace kfrpj.Data
 
         public DbSet<tenants_list> tenants_list { get; set; }
 
+        public DbSet<room_tenant_rel> room_tenant_rel { get; set; }
+
         public DbSet<TenantReportViewModel> tenant_report_view_models { get; set; }
 
         public DbSet<settings_list> settings_list { get; set; }

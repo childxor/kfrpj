@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using kfrpj.Data;
+using kfrpj.Models;
 using kfrpj.Models.rooms;
+using kfrpj.Models.tenants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -272,6 +274,187 @@ namespace kfrpj.Controllers
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลห้อง");
                 return Json(new object[0]);
+            }
+        }
+
+        // API สำหรับจัดการผู้เช่า
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableUsers()
+        {
+            try
+            {
+                var users = await _context.tenants_list
+                    .Where(u => u.record_status == "N")
+                    .Select(u => new
+                    {
+                        id = u.id,
+                        fullname = u.name,
+                        phone_number = u.phone_number,
+                        email = u.email
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, users });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงรายชื่อผู้ใช้");
+                return Json(new { success = false, message = "ไม่สามารถดึงรายชื่อผู้ใช้ได้" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRoomTenant(int roomId)
+        {
+            try
+            {
+                var roomTenant = await _context.room_tenant_rel
+                    .Include(rt => rt.Tenant)
+                    .Where(rt => rt.room_id == roomId && rt.record_status == "N" && rt.status == "active")
+                    .OrderByDescending(rt => rt.created_at)
+                    .FirstOrDefaultAsync();
+
+                if (roomTenant == null)
+                {
+                    return Json(new { success = true, hasTenant = false });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    hasTenant = true,
+                    tenant = new
+                    {
+                        userId = roomTenant.tenant_id,
+                        fullname = roomTenant.Tenant?.name,
+                        phone = roomTenant.Tenant?.phone_number,
+                        email = roomTenant.Tenant?.email,
+                        start_date = roomTenant.start_date?.ToString("yyyy-MM-dd"),
+                        end_date = roomTenant.end_date?.ToString("yyyy-MM-dd")
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลผู้เช่าห้อง {roomId}");
+                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลผู้เช่าได้" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateRoomTenant(int roomId, int userId, DateTime? startDate, DateTime? endDate)
+        {
+            try
+            {
+                // ตรวจสอบว่ามีห้องนี้จริง
+                var room = await _context.rooms_list.FindAsync(roomId);
+                if (room == null)
+                {
+                    return Json(new { success = false, message = "ไม่พบข้อมูลห้องที่ระบุ" });
+                }
+
+                // ตรวจสอบว่ามีผู้ใช้นี้จริง
+                var user = await _context.tenants_list.FindAsync(userId);
+                if (user == null)
+                {
+                    return Json(new { success = false, message = "ไม่พบข้อมูลผู้ใช้ที่ระบุ" });
+                }
+
+                // ตรวจสอบว่ามีความสัมพันธ์อยู่แล้วหรือไม่
+                var existingRelation = await _context.room_tenant_rel
+                    .Where(rt => rt.room_id == roomId && rt.status == "active" && rt.record_status == "N")
+                    .FirstOrDefaultAsync();
+
+                if (existingRelation != null)
+                {
+                    // อัปเดตสถานะความสัมพันธ์เดิมเป็น inactive
+                    existingRelation.status = "inactive";
+                    existingRelation.updated_at = DateTime.Now;
+                    existingRelation.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+                }
+
+                // สร้างความสัมพันธ์ใหม่
+                var newRelation = new room_tenant_rel
+                {
+                    room_id = roomId,
+                    tenant_id = userId,
+                    start_date = startDate,
+                    end_date = endDate,
+                    status = "active",
+                    created_at = DateTime.Now,
+                    created_by = HttpContext.Session.GetString("Username") ?? "System",
+                    record_status = "N"
+                };
+
+                _context.room_tenant_rel.Add(newRelation);
+                await _context.SaveChangesAsync();
+
+                // อัปเดตสถานะห้อง
+                room.room_status = "ไม่ว่าง";
+                room.updated_at = DateTime.Now;
+                room.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+                await _context.SaveChangesAsync();
+
+                return Json(new { 
+                    success = true, 
+                    message = "อัปเดตผู้เช่าเรียบร้อยแล้ว",
+                    tenant = new
+                    {
+                        userId,
+                        fullname = user.name,
+                        phone = user.phone_number,
+                        email = user.email
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการอัปเดตผู้เช่าห้อง {roomId}");
+                return Json(new { success = false, message = "ไม่สามารถอัปเดตผู้เช่าได้" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveRoomTenant(int roomId)
+        {
+            try
+            {
+                // ตรวจสอบว่ามีห้องนี้จริง
+                var room = await _context.rooms_list.FindAsync(roomId);
+                if (room == null)
+                {
+                    return Json(new { success = false, message = "ไม่พบข้อมูลห้องที่ระบุ" });
+                }
+
+                // ตรวจสอบว่ามีความสัมพันธ์อยู่แล้วหรือไม่
+                var existingRelation = await _context.room_tenant_rel
+                    .Where(rt => rt.room_id == roomId && rt.status == "active" && rt.record_status == "N")
+                    .FirstOrDefaultAsync();
+
+                if (existingRelation != null)
+                {
+                    // อัปเดตสถานะความสัมพันธ์เดิมเป็น inactive
+                    existingRelation.status = "inactive";
+                    existingRelation.updated_at = DateTime.Now;
+                    existingRelation.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+
+                    // อัปเดตสถานะห้อง
+                    room.room_status = "ว่าง";
+                    room.updated_at = DateTime.Now;
+                    room.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+                    
+                    await _context.SaveChangesAsync();
+                    return Json(new { success = true, message = "ลบผู้เช่าเรียบร้อยแล้ว" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "ไม่พบข้อมูลผู้เช่าในห้องนี้" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบผู้เช่าห้อง {roomId}");
+                return Json(new { success = false, message = "ไม่สามารถลบผู้เช่าได้" });
             }
         }
     }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using kfrpj.Data;
 
@@ -11,9 +12,11 @@ using kfrpj.Data;
 namespace kfrpj.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250621102407_CreateRoomTenantRelation")]
+    partial class CreateRoomTenantRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -118,7 +121,7 @@ namespace kfrpj.Migrations
                     b.Property<string>("notes")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("payment_date")
+                    b.Property<DateTime?>("paid_date")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("record_status")
@@ -186,6 +189,9 @@ namespace kfrpj.Migrations
                     b.Property<decimal>("water_bill")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("water_units")
+                        .HasColumnType("int");
+
                     b.HasKey("water_meter_id");
 
                     b.HasIndex("room_id");
@@ -224,20 +230,20 @@ namespace kfrpj.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("tenant_id")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("updated_at")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("updated_by")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("user_id")
+                        .HasColumnType("int");
+
                     b.HasKey("rel_id");
 
                     b.HasIndex("room_id");
 
-                    b.HasIndex("tenant_id");
+                    b.HasIndex("user_id");
 
                     b.ToTable("room_tenant_rel");
                 });
@@ -500,15 +506,15 @@ namespace kfrpj.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("kfrpj.Models.tenants.tenants_list", "Tenant")
+                    b.HasOne("kfrpj.Models.sys_users", "User")
                         .WithMany()
-                        .HasForeignKey("tenant_id")
+                        .HasForeignKey("user_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Room");
 
-                    b.Navigation("Tenant");
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }
