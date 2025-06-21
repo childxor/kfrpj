@@ -419,6 +419,16 @@ namespace kfrpj.Controllers
         {
             try
             {
+                // ตรวจสอบว่า room_id มีอยู่จริงในตาราง rooms_list
+                var roomExists = await _context.rooms_list.AnyAsync(r =>
+                    r.room_id == roomCharge.room_id && r.record_status == "N"
+                );
+
+                if (!roomExists)
+                {
+                    return Json(new { success = false, message = "ไม่พบข้อมูลห้องที่ระบุ" });
+                }
+
                 // ตรวจสอบว่ามีค่าห้องสำหรับเดือนนี้แล้วหรือไม่
                 var existingCharge = await _context.room_charges_list.AnyAsync(rc =>
                     rc.room_id == roomCharge.room_id
@@ -450,7 +460,9 @@ namespace kfrpj.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการสร้างข้อมูลค่าห้อง");
-                return Json(new { success = false, message = "ไม่สามารถบันทึกข้อมูลได้" });
+                return Json(
+                    new { success = false, message = "ไม่สามารถบันทึกข้อมูลได้: " + ex.Message }
+                );
             }
         }
 
@@ -766,8 +778,8 @@ namespace kfrpj.Controllers
         )
         {
             // ดึงข้อมูลค่าห้อง
-            var roomCharge = await _context.room_charges_list
-                .Where(rc =>
+            var roomCharge = await _context
+                .room_charges_list.Where(rc =>
                     rc.room_id == room.room_id
                     && rc.charge_month.Month == month
                     && rc.charge_month.Year == year
@@ -777,8 +789,8 @@ namespace kfrpj.Controllers
                 .FirstOrDefaultAsync();
 
             // ดึงข้อมูลค่าน้ำ
-            var waterBill = await _context.water_meters_list
-                .Where(wm =>
+            var waterBill = await _context
+                .water_meters_list.Where(wm =>
                     wm.room_id == room.room_id
                     && wm.meter_date.Month == month
                     && wm.meter_date.Year == year
@@ -788,8 +800,8 @@ namespace kfrpj.Controllers
                 .FirstOrDefaultAsync();
 
             // ดึงข้อมูลค่าไฟ
-            var electricBill = await _context.electric_meters_list
-                .Where(em =>
+            var electricBill = await _context
+                .electric_meters_list.Where(em =>
                     em.room_id == room.room_id
                     && em.meter_date.Month == month
                     && em.meter_date.Year == year
@@ -803,9 +815,8 @@ namespace kfrpj.Controllers
 
             // คำนวณวันครบกำหนด
             var dueDate = roomCharge?.due_date ?? DateTime.Now;
-            var daysOverdue = roomCharge?.is_paid != true
-                ? Math.Max(0, (DateTime.Now - dueDate).Days)
-                : 0;
+            var daysOverdue =
+                roomCharge?.is_paid != true ? Math.Max(0, (DateTime.Now - dueDate).Days) : 0;
 
             // คำนวณยอดรวม
             var totalAmount =
@@ -820,9 +831,10 @@ namespace kfrpj.Controllers
                 + (electricBill?.is_paid != true ? electricBill?.electric_bill ?? 0 : 0);
 
             // คำนวณความคืบหน้า
-            var paymentProgress = totalAmount > 0
-                ? Math.Round(((totalAmount - pendingAmount) / totalAmount) * 100, 0)
-                : 0;
+            var paymentProgress =
+                totalAmount > 0
+                    ? Math.Round(((totalAmount - pendingAmount) / totalAmount) * 100, 0)
+                    : 0;
 
             // สถานะการชำระ
             var isFullyPaid = pendingAmount == 0 && totalAmount > 0;
@@ -1918,6 +1930,39 @@ namespace kfrpj.Controllers
             }
 
             return (true, "");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRoomChargeDetail(int id)
+        {
+            try
+            {
+                var roomCharge = await _context.room_charges_list
+                    .Where(rc => rc.room_charge_id == id && rc.record_status == "N")
+                    .Select(rc => new
+                    {
+                        rc.room_charge_id,
+                        rc.room_id,
+                        rc.charge_month,
+                        rc.room_price,
+                        rc.due_date,
+                        rc.is_paid,
+                        rc.notes
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (roomCharge == null)
+                {
+                    return Json(new { success = false, message = "ไม่พบข้อมูลค่าห้อง" });
+                }
+
+                return Json(new { success = true, data = roomCharge });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลค่าห้อง ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลได้" });
+            }
         }
     }
 }

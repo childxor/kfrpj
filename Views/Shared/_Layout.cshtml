@@ -6,16 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ระบบจัดการห้องเช่า</title>
     <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/kfrpj.styles.css" asp-append-version="true" />
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
-    <!-- Animate.css -->
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/lib/animate.css/animate.min.css" />
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="~/lib/datatables.net-bs5/dataTables.bootstrap5.min.css">
-    <!-- SweetAlert2 CSS -->
-    <link rel="stylesheet" href="~/lib/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="~/lib/datatables.net-bs5/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="~/lib/sweetalert2/sweetalert2.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" />
     <!-- Google Fonts สำหรับภาษาไทย -->
     <script src="~/lib/moment/moment.min.js"></script>
     <script src="~/lib/moment/locale/th.js"></script>
@@ -370,6 +367,16 @@
     <!-- DataTables JS -->
     <script src="~/lib/datatables.net/jquery.dataTables.min.js"></script>
     <script src="~/lib/datatables.net-bs5/dataTables.bootstrap5.min.js"></script>
+    <!-- DataTables Buttons -->
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.70/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.70/vfs_fonts.js"></script>
     <!-- SweetAlert2 JS -->
     <script src="~/lib/sweetalert2/sweetalert2.all.min.js"></script>
     <!-- Chart.js -->
@@ -380,38 +387,6 @@
 
     <!-- JavaScript สำหรับ dark mode -->
     <script>
-        // ฟังก์ชันสำหรับจัดการ dark mode
-        function setDarkMode(isDark) {
-            const html = document.documentElement;
-            if (isDark) {
-                html.setAttribute('data-bs-theme', 'dark');
-                document.getElementById('darkModeSwitch').checked = true;
-            } else {
-                html.setAttribute('data-bs-theme', 'light');
-                document.getElementById('darkModeSwitch').checked = false;
-            }
-            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
-        }
-
-        // โหลดการตั้งค่า dark mode จาก localStorage
-        document.addEventListener('DOMContentLoaded', function () {
-            const darkMode = localStorage.getItem('darkMode') === 'true';
-            setDarkMode(darkMode);
-
-            // เพิ่ม animation ให้กับ dropdown menu
-            const dropdownMenus = document.querySelectorAll('.dropdown-menu');
-            dropdownMenus.forEach(menu => {
-                menu.classList.add('animate__animated', 'animate__fadeIn');
-            });
-        });
-
-        // จัดการการเปลี่ยน dark mode
-        document.getElementById('darkModeSwitch').addEventListener('change', function (e) {
-            setDarkMode(e.target.checked);
-        });
-    </script>
-
-     <script>
         // ฟังก์ชันสำหรับจัดการ dark mode
         function setDarkMode(isDark) {
             const html = document.documentElement;

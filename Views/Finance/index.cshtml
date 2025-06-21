@@ -194,17 +194,17 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table id="missionTable" class="table table-hover mb-0">
+                <table id="missionTable" class="table table-hover mb-0 display nowrap" style="width:100%">
                     <thead class="table-dark sticky-top">
                         <tr>
-                            <th class="text-center" style="width: 8%">
+                            <th class="text-center" style="width: 5%">
                                 <input type="checkbox" class="form-check-input" id="selectAllRooms" title="เลือกทั้งหมด">
                             </th>
                             <th class="text-center" style="width: 8%">ห้อง</th>
                             <th style="width: 15%">ผู้เช่า</th>
                             <th class="text-center" style="width: 12%">ค่าห้อง</th>
                             <th class="text-center" style="width: 10%">ค่าน้ำ</th>
-                            <th class="text-center" style="width: 10%">ค่าไฟ</th>
+                            <th class="text-center" style="width: 10%">ค่าไฟ</th> 
                             <th class="text-center" style="width: 12%">รวมทั้งหมด</th>
                             <th class="text-center" style="width: 10%">ความคืบหน้า</th>
                             <th class="text-center" style="width: 15%">การจัดการ</th>
@@ -663,6 +663,7 @@
         let selectedRooms = new Set();
         let autoRefreshInterval = null;
         let rates = { waterRate: 15, electricRate: 5 };
+        let missionTable; // ตัวแปรสำหรับเก็บอ้างอิง DataTable
 
         $(document).ready(function () {
             initializePage();
@@ -747,144 +748,253 @@
                 return;
             }
 
-            let filteredData = applyCurrentFilter(missionData);
-            console.log('ข้อมูลหลัง filter:', filteredData.length, 'จาก', missionData.length);
-            
-            let tableBody = '';
-
-            if (filteredData.length === 0) {
-                tableBody = '<tr><td colspan="9" class="text-center text-muted py-4">ไม่มีข้อมูลที่ตรงกับเงื่อนไข</td></tr>';
-            } else {
-                filteredData.forEach((room, index) => {
-                    try {
-                        const rowClass = getPriorityClass(room);
-                        const progressWidth = room.paymentProgress || 0;
-                        const progressClass = getProgressClass(progressWidth);
-
-                        tableBody += `
-                            <tr class="room-row ${rowClass}" data-room-id="${room.roomId}">
-                                <td class="text-center">
-                                    <input type="checkbox" class="form-check-input room-checkbox" value="${room.roomId}">
-                                </td>
-                                <td class="text-center">
-                                    <span class="fw-bold text-primary fs-5">${room.roomName || 'ไม่ระบุ'}</span>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-person-circle me-2 text-muted"></i>
-                                        ${room.tenantName || 'ไม่ระบุ'}
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <span class="bill-amount ${room.roomCharge?.isPaid ? 'amount-paid' : 'amount-unpaid'}">
-                                        ฿${(room.roomCharge?.amount || 0).toLocaleString()}
-                                    </span>
-                                    ${room.roomCharge?.isPaid ? '<i class="bi bi-check-circle text-success ms-1"></i>' : ''}
-                                </td>
-                                <td class="text-center">
-                                    <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span class="bill-amount ${room.waterBill?.isPaid ? 'amount-paid' : 'amount-unpaid'}">
-                                            ฿${(room.waterBill?.amount || 0).toLocaleString()}
-                                        </span>
-                                        ${(room.waterBill?.amount || 0) > 0 && !room.waterBill?.isPaid ? 
-                                            `<button class="btn btn-sm btn-outline-primary" onclick="editWaterBill(${room.roomId}, '${room.roomName}')" title="แก้ไขค่าน้ำ">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>` : ''
-                                        }
-                                        ${(room.waterBill?.amount || 0) === 0 ? 
-                                            `<button class="btn btn-sm btn-primary" onclick="addWaterBill(${room.roomId}, '${room.roomName}')" title="เพิ่มค่าน้ำ">
-                                                <i class="bi bi-plus"></i>
-                                            </button>` : ''
-                                        }
-                                    </div>
-                                    ${(room.waterBill?.amount || 0) > 0 ? `<br><small class="text-muted">${room.waterBill?.units || 0} คน</small>` : ''}
-                                    ${room.waterBill?.isPaid ? '<br><i class="bi bi-check-circle text-success"></i>' : ''}
-                                </td>
-                                <td class="text-center">
-                                    <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span class="bill-amount ${room.electricBill?.isPaid ? 'amount-paid' : 'amount-unpaid'}">
-                                            ฿${(room.electricBill?.amount || 0).toLocaleString()}
-                                        </span>
-                                        ${(room.electricBill?.amount || 0) > 0 && !room.electricBill?.isPaid ? 
-                                            `<button class="btn btn-sm btn-outline-warning" onclick="editElectricBill(${room.roomId}, '${room.roomName}')" title="แก้ไขค่าไฟ">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>` : ''
-                                        }
-                                        ${(room.electricBill?.amount || 0) === 0 ? 
-                                            `<button class="btn btn-sm btn-warning" onclick="addElectricBill(${room.roomId}, '${room.roomName}')" title="เพิ่มค่าไฟ">
-                                                <i class="bi bi-plus"></i>
-                                            </button>` : ''
-                                        }
-                                    </div>
-                                    ${(room.electricBill?.amount || 0) > 0 ? `<br><small class="text-muted">${room.electricBill?.units || 0} หน่วย</small>` : ''}
-                                    ${room.electricBill?.isPaid ? '<br><i class="bi bi-check-circle text-success"></i>' : ''}
-                                </td>
-                                <td class="text-center">
-                                    <span class="bill-amount fw-bold text-primary fs-5">
-                                        ฿${(room.totalAmount || 0).toLocaleString()}
-                                    </span>
-                                    ${(room.pendingAmount || 0) > 0 ? `<br><small class="text-danger">ค้าง ฿${(room.pendingAmount || 0).toLocaleString()}</small>` : ''}
-                                </td>
-                                <td class="text-center">
-                                    <div class="progress progress-mini mb-1" style="height: 8px;">
-                                        <div class="progress-bar ${progressClass}" role="progressbar" 
-                                             style="width: ${progressWidth}%" aria-valuenow="${progressWidth}" 
-                                             aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                    <small class="text-muted">${progressWidth}%</small>
-                                </td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button class="btn btn-outline-info" onclick="showRoomDetail(${room.roomId})" title="รายละเอียด">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        ${!room.isFullyPaid ? `
-                                            <button class="btn btn-outline-success" onclick="markRoomAsPaid(${room.roomId})" title="เก็บเงินครบ">
-                                                <i class="bi bi-check-circle"></i>
-                                            </button>
-                                        ` : ''}
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" 
-                                                    data-bs-toggle="dropdown" aria-expanded="false" title="เพิ่มเติม">
-                                                <i class="bi bi-three-dots"></i>
-                                            </button>
-                                            <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="#" onclick="showPaymentHistory(${room.roomId})">
-                                                    <i class="bi bi-clock-history me-2"></i>ประวัติการชำระ
-                                                </a></li>
-                                                <li><a class="dropdown-item" href="#" onclick="printRoomReceipt(${room.roomId})">
-                                                    <i class="bi bi-receipt me-2"></i>พิมพ์ใบเสร็จ
-                                                </a></li>
-                                                <li><a class="dropdown-item" href="#" onclick="manageTenant(${room.roomId}, '${room.roomName}')">
-                                                    <i class="bi bi-person-fill me-2"></i>จัดการผู้เช่า
-                                                </a></li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    } catch (roomError) {
-                        console.error('Error rendering room:', room, roomError);
-                        tableBody += `
-                            <tr class="room-row" data-room-id="${room.roomId || 'unknown'}">
-                                <td colspan="9" class="text-center text-danger">
-                                    เกิดข้อผิดพลาดในการแสดงข้อมูลห้อง ${room.roomName || 'ไม่ทราบ'}
-                                </td>
-                            </tr>
-                        `;
-                    }
-                });
+            // ถ้ามี DataTable อยู่แล้ว ให้ทำลายก่อน
+            if ($.fn.DataTable.isDataTable('#missionTable')) {
+                if (missionTable) {
+                    missionTable.destroy();
+                } else {
+                    // ถ้า missionTable เป็น undefined ให้ทำลาย DataTable ด้วยวิธีอื่น
+                    $('#missionTable').DataTable().destroy();
+                }
+                $('#missionTableBody').empty();
             }
 
-            $('#missionTableBody').html(tableBody);
-            updateTableStats(filteredData.length, missionData.length);
+            let tableData = [];
             
+            missionData.forEach((room, index) => {
+                try {
+                    const rowClass = getPriorityClass(room);
+                    const progressWidth = room.paymentProgress || 0;
+                    const progressClass = getProgressClass(progressWidth);
+                    
+                    // เพิ่ม log เพื่อตรวจสอบข้อมูลห้อง
+                    console.log('Room data:', room.roomName, 'Room charge:', room.roomCharge);
+                    
+                    // สร้างข้อมูลแถว
+                    const rowData = [
+                        // คอลัมน์ checkbox
+                        `<input type="checkbox" class="form-check-input room-checkbox" value="${room.roomId}">`,
+                        
+                        // คอลัมน์ห้อง
+                        `<span class="fw-bold text-primary fs-5">${room.roomName || 'ไม่ระบุ'}</span>`,
+                        
+                        // คอลัมน์ผู้เช่า
+                        `<div class="d-flex align-items-center">
+                            <i class="bi bi-person-circle me-2 text-muted"></i>
+                            ${room.tenantName || 'ไม่ระบุ'}
+                        </div>`,
+                        
+                        // คอลัมน์ค่าห้อง - ตรวจสอบว่า room.roomCharge มีค่าหรือไม่ก่อนที่จะเข้าถึง amount
+                        `<div class="d-flex align-items-center justify-content-center gap-1">
+                            <span class="bill-amount ${room.roomCharge?.isPaid ? 'amount-paid' : 'amount-unpaid'}">
+                                ฿${(room.roomCharge && room.roomCharge.amount ? room.roomCharge.amount : 0).toLocaleString()}
+                            </span>
+                            ${(room.roomCharge && room.roomCharge.amount > 0 && !room.roomCharge.isPaid) ? 
+                                `<button class="btn btn-sm btn-outline-success" onclick="editRoomCharge(${room.roomId}, '${room.roomName}', ${room.roomCharge.id})" title="แก้ไขค่าห้อง">
+                                    <i class="bi bi-pencil"></i>
+                                </button>` : ''
+                            }
+                            ${(!room.roomCharge || !room.roomCharge.amount || room.roomCharge.amount <= 0) ? 
+                                `<button class="btn btn-sm btn-success" onclick="manualCreateRoomCharge(${room.roomId}, '${room.roomName}')" title="เพิ่มค่าห้อง">
+                                    <i class="bi bi-plus"></i>
+                                </button>` : ''
+                            }
+                        </div>
+                        ${room.roomCharge?.isPaid ? '<br><i class="bi bi-check-circle text-success"></i>' : ''}`,
+                        
+                        // คอลัมน์ค่าน้ำ
+                        `<div class="d-flex align-items-center justify-content-center gap-1">
+                            <span class="bill-amount ${room.waterBill?.isPaid ? 'amount-paid' : 'amount-unpaid'}">
+                                ฿${(room.waterBill?.amount || 0).toLocaleString()}
+                            </span>
+                            ${(room.waterBill?.amount || 0) > 0 && !room.waterBill?.isPaid ? 
+                                `<button class="btn btn-sm btn-outline-primary" onclick="editWaterBill(${room.roomId}, '${room.roomName}')" title="แก้ไขค่าน้ำ">
+                                    <i class="bi bi-pencil"></i>
+                                </button>` : ''
+                            }
+                            ${(room.waterBill?.amount || 0) === 0 ? 
+                                `<button class="btn btn-sm btn-primary" onclick="addWaterBill(${room.roomId}, '${room.roomName}')" title="เพิ่มค่าน้ำ">
+                                    <i class="bi bi-plus"></i>
+                                </button>` : ''
+                            }
+                        </div>
+                        ${(room.waterBill?.amount || 0) > 0 ? `<br><small class="text-muted">${room.waterBill?.units || 0} คน</small>` : ''}
+                        ${room.waterBill?.isPaid ? '<br><i class="bi bi-check-circle text-success"></i>' : ''}`,
+                        
+                        // คอลัมน์ค่าไฟ
+                        `<div class="d-flex align-items-center justify-content-center gap-1">
+                            <span class="bill-amount ${room.electricBill?.isPaid ? 'amount-paid' : 'amount-unpaid'}">
+                                ฿${(room.electricBill?.amount || 0).toLocaleString()}
+                            </span>
+                            ${(room.electricBill?.amount || 0) > 0 && !room.electricBill?.isPaid ? 
+                                `<button class="btn btn-sm btn-outline-warning" onclick="editElectricBill(${room.roomId}, '${room.roomName}')" title="แก้ไขค่าไฟ">
+                                    <i class="bi bi-pencil"></i>
+                                </button>` : ''
+                            }
+                            ${(room.electricBill?.amount || 0) === 0 ? 
+                                `<button class="btn btn-sm btn-warning" onclick="addElectricBill(${room.roomId}, '${room.roomName}')" title="เพิ่มค่าไฟ">
+                                    <i class="bi bi-plus"></i>
+                                </button>` : ''
+                            }
+                        </div>
+                        ${(room.electricBill?.amount || 0) > 0 ? `<br><small class="text-muted">${room.electricBill?.units || 0} หน่วย</small>` : ''}
+                        ${room.electricBill?.isPaid ? '<br><i class="bi bi-check-circle text-success"></i>' : ''}`,
+                        
+                        // คอลัมน์รวมทั้งหมด
+                        `<span class="bill-amount fw-bold text-primary fs-5">
+                            ฿${(room.totalAmount || 0).toLocaleString()}
+                        </span>
+                        ${(room.pendingAmount || 0) > 0 ? `<br><small class="text-danger">ค้าง ฿${(room.pendingAmount || 0).toLocaleString()}</small>` : ''}`,
+                        
+                        // คอลัมน์ความคืบหน้า
+                        `<div class="progress progress-mini mb-1" style="height: 8px;">
+                            <div class="progress-bar ${progressClass}" role="progressbar" 
+                                style="width: ${progressWidth}%" aria-valuenow="${progressWidth}" 
+                                aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small class="text-muted">${progressWidth}%</small>`,
+                        
+                        // คอลัมน์การจัดการ
+                        `<div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-info" onclick="showRoomDetail(${room.roomId})" title="รายละเอียด">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            ${!room.isFullyPaid ? `
+                                <button class="btn btn-outline-success" onclick="markRoomAsPaid(${room.roomId})" title="เก็บเงินครบ">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                            ` : ''}
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" 
+                                        data-bs-toggle="dropdown" aria-expanded="false" title="เพิ่มเติม">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="showPaymentHistory(${room.roomId})">
+                                        <i class="bi bi-clock-history me-2"></i>ประวัติการชำระ
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="printRoomReceipt(${room.roomId})">
+                                        <i class="bi bi-receipt me-2"></i>พิมพ์ใบเสร็จ
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="manageTenant(${room.roomId}, '${room.roomName}')">
+                                        <i class="bi bi-person-fill me-2"></i>จัดการผู้เช่า
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>`
+                    ];
+                    
+                    // เพิ่มข้อมูลแถวไปยัง tableData
+                    tableData.push(rowData);
+                    
+                } catch (roomError) {
+                    console.error('Error rendering room:', room, roomError);
+                }
+            });
+            
+            // สร้าง DataTable
+            missionTable = $('#missionTable').DataTable({
+                data: tableData,
+                columns: [
+                    { title: '<input type="checkbox" id="dt-select-all">' },
+                    { title: 'ห้อง' },
+                    { title: 'ผู้เช่า' },
+                    { title: 'ค่าห้อง' },
+                    { title: 'ค่าน้ำ' },
+                    { title: 'ค่าไฟ' },
+                    { title: 'รวมทั้งหมด' },
+                    { title: 'ความคืบหน้า' },
+                    { title: 'การจัดการ' }
+                ],
+                language: {
+                    "search": "ค้นหา:",
+                    "lengthMenu": "แสดง _MENU_ รายการ",
+                    "zeroRecords": "ไม่พบข้อมูล",
+                    "info": "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
+                    "infoEmpty": "ไม่มีข้อมูลที่แสดงได้",
+                    "infoFiltered": "(กรองจากทั้งหมด _MAX_ รายการ)",
+                    "paginate": {
+                        "first": "หน้าแรก",
+                        "last": "หน้าสุดท้าย",
+                        "next": "ถัดไป",
+                        "previous": "ก่อนหน้า"
+                    }
+                },
+                responsive: true,
+                order: [[1, 'asc']], // เรียงตามชื่อห้อง
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'copy',
+                        text: '<i class="bi bi-clipboard"></i> คัดลอก',
+                        className: 'btn btn-outline-primary btn-sm'
+                    },
+                    {
+                        extend: 'excel',
+                        text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+                        className: 'btn btn-outline-success btn-sm'
+                    },
+                    {
+                        extend: 'pdf',
+                        text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
+                        className: 'btn btn-outline-danger btn-sm'
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="bi bi-printer"></i> พิมพ์',
+                        className: 'btn btn-outline-info btn-sm'
+                    }
+                ],
+                columnDefs: [
+                    { 
+                        targets: 0, 
+                        orderable: false,
+                        className: 'select-checkbox text-center',
+                        width: '5%'
+                    },
+                    { targets: 1, width: '8%' },
+                    { targets: 2, width: '15%' },
+                    { targets: 3, width: '12%' },
+                    { targets: 4, width: '10%' },
+                    { targets: 5, width: '10%' },
+                    { targets: 6, width: '12%' },
+                    { targets: 7, width: '10%' },
+                    { 
+                        targets: 8, 
+                        orderable: false,
+                        width: '15%'
+                    }
+                ],
+                drawCallback: function() {
+                    // อัปเดตสถานะการเลือกทั้งหมด
+                    updateSelectedRooms();
+                    
+                    // อัปเดตสถิติตาราง
+                    updateTableStats(missionTable.page.info().recordsDisplay, missionTable.page.info().recordsTotal);
+                }
+            });
+            
+            // ตั้งค่า event listener สำหรับ checkbox ทั้งหมด
+            $('#dt-select-all').on('click', function() {
+                $('.room-checkbox').prop('checked', this.checked);
+                updateSelectedRooms();
+            });
+            
+            // ตั้งค่า event listener สำหรับ checkbox แต่ละแถว
+            $('#missionTable tbody').on('change', '.room-checkbox', function() {
+                updateSelectedRooms();
+            });
+
             console.log('Render table เสร็จสิ้น');
         }
 
         // ฟังก์ชันช่วยเหลือ
         function getPriorityClass(room) {
+            // ตรวจสอบว่า room.roomCharge มีค่าหรือไม่ก่อนที่จะเข้าถึง daysOverdue
+            if (!room.roomCharge) {
+                return 'priority-high'; // ถ้าไม่มีค่าห้อง ให้แสดงเป็นความสำคัญสูง
+            }
+
             if (room.roomCharge.daysOverdue > 7) return 'priority-high';
             if (room.roomCharge.daysOverdue > 0 || room.isPartiallyPaid) return 'priority-medium';
             if (room.isFullyPaid) return 'priority-normal';
@@ -1039,10 +1149,20 @@
 
         function handleRoomChargeSubmit(e) {
             e.preventDefault();
+            
+            // ตรวจสอบว่า room_id มีค่าหรือไม่
+            const roomId = $('#room_charge_room_id').val();
+            if (!roomId) {
+                showError('กรุณาเลือกห้อง');
+                return;
+            }
+            
+            // สร้าง FormData จาก form
             const formData = new FormData(this);
+            
+            // ส่งข้อมูลไปยัง controller
             const roomChargeId = $('#room_charge_id').val();
             const isEdit = roomChargeId && roomChargeId.trim() !== '';
-            
             const url = isEdit ? `/Finance/UpdateRoomCharge/${roomChargeId}` : '/Finance/CreateRoomCharge';
             
             $.ajax({
@@ -1051,17 +1171,17 @@
                 data: formData,
                 processData: false,
                 contentType: false,
-                success: function (response) {
+                success: function(response) {
                     if (response.success) {
                         $('#roomChargeModal').modal('hide');
-                        refreshAllData();
+                        safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
                         showSuccess(isEdit ? 'แก้ไขข้อมูลค่าห้องเรียบร้อยแล้ว' : 'บันทึกข้อมูลค่าห้องเรียบร้อยแล้ว');
                     } else {
                         showError(response.message || 'ไม่สามารถบันทึกข้อมูลได้');
                     }
                 },
-                error: function () {
-                    showError('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                error: function(xhr) {
+                    showError('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + (xhr.responseJSON?.message || xhr.statusText));
                 }
             });
         }
@@ -1070,6 +1190,39 @@
         function refreshAllData() {
             updateStatistics();
             loadMissionData();
+        }
+        
+        // เพิ่มฟังก์ชันสำหรับการโหลดข้อมูลใหม่ที่ปลอดภัยกว่า
+        function safeRefreshData() {
+            try {
+                updateStatistics();
+                
+                // ถ้ากำลังโหลดข้อมูลอยู่ ให้รอก่อน
+                if ($('#missionTableBody').hasClass('loading')) {
+                    console.log('กำลังโหลดข้อมูล รอสักครู่...');
+                    setTimeout(safeRefreshData, 1000);
+                    return;
+                }
+                
+                // ถ้ามี DataTable อยู่แล้ว ให้ทำลายอย่างปลอดภัย
+                if ($.fn.DataTable.isDataTable('#missionTable')) {
+                    try {
+                        $('#missionTable').DataTable().destroy();
+                    } catch (e) {
+                        console.warn('ไม่สามารถทำลาย DataTable เดิม:', e);
+                    }
+                    $('#missionTableBody').empty();
+                }
+                
+                // รีเซ็ตตัวแปร missionTable
+                missionTable = null;
+                
+                // โหลดข้อมูลใหม่
+                loadMissionData();
+            } catch (e) {
+                console.error('เกิดข้อผิดพลาดในการรีเฟรชข้อมูล:', e);
+                showError('เกิดข้อผิดพลาดในการรีเฟรชข้อมูล กรุณาลองใหม่อีกครั้ง');
+            }
         }
 
         function generateMonthlyCharges() {
@@ -1083,22 +1236,22 @@
                 confirmButtonText: 'ใช่, สร้างเลย',
                 cancelButtonText: 'ยกเลิก'
             }).then((result) => {
-                if (result.isConfirmed) {
-                    $.post('/Finance/GenerateMonthlyCharges', function (response) {
-                        if (response.success) {
-                            refreshAllData();
-                            Swal.fire({
-                                title: 'สำเร็จ!',
-                                html: `${response.message}<br>
-                                      <strong>สร้างใหม่:</strong> ${response.createdCount} ห้อง<br>
-                                      <strong>มีอยู่แล้ว:</strong> ${response.skippedCount} ห้อง`,
-                                icon: 'success'
-                            });
-                        } else {
-                            showError(response.message);
-                        }
-                    }).fail(() => showError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'));
-                }
+                                    if (result.isConfirmed) {
+                        $.post('/Finance/GenerateMonthlyCharges', function (response) {
+                            if (response.success) {
+                                safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
+                                Swal.fire({
+                                    title: 'สำเร็จ!',
+                                    html: `${response.message}<br>
+                                          <strong>สร้างใหม่:</strong> ${response.createdCount} ห้อง<br>
+                                          <strong>มีอยู่แล้ว:</strong> ${response.skippedCount} ห้อง`,
+                                    icon: 'success'
+                                });
+                            } else {
+                                showError(response.message);
+                            }
+                        }).fail(() => showError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'));
+                    }
             });
         }
 
@@ -1125,7 +1278,7 @@
                 if (result.isConfirmed) {
                     $.post('/Finance/MarkRoomAsPaid', { roomId: roomId }, function (response) {
                         if (response.success) {
-                            refreshAllData();
+                            safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
                             showSuccess(`เก็บเงินห้อง ${room.roomName} เรียบร้อยแล้ว`);
                         } else {
                             showError(response.message);
@@ -1167,7 +1320,7 @@
                         contentType: 'application/json',
                         success: function (response) {
                             if (response.success) {
-                                refreshAllData();
+                                safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
                                 selectedRooms.clear();
                                 updateSelectedRooms();
                                 showSuccess(`เก็บเงินเรียบร้อยแล้ว ${response.successCount}/${response.totalCount} ห้อง`);
@@ -1617,7 +1770,7 @@
                 success: function (response) {
                     if (response.success) {
                         $('#waterBillModal').modal('hide');
-                        refreshAllData();
+                        safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
                         showSuccess(isEdit ? 'แก้ไขค่าน้ำเรียบร้อยแล้ว' : 'เพิ่มค่าน้ำเรียบร้อยแล้ว');
                     } else {
                         showError(response.message || 'ไม่สามารถบันทึกข้อมูลได้');
@@ -1647,7 +1800,7 @@
                 success: function (response) {
                     if (response.success) {
                         $('#electricBillModal').modal('hide');
-                        refreshAllData();
+                        safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
                         showSuccess(isEdit ? 'แก้ไขค่าไฟเรียบร้อยแล้ว' : 'เพิ่มค่าไฟเรียบร้อยแล้ว');
                     } else {
                         showError(response.message || 'ไม่สามารถบันทึกข้อมูลได้');
@@ -1698,20 +1851,56 @@
             });
         };
 
-        window.editRoomCharge = function(id) {
-            $.get('/Finance/GetRoomCharges', function(response) {
-                const roomCharge = response.data.find(r => r.room_charge_id === id);
-                if (roomCharge) {
-                    $('#room_charge_id').val(roomCharge.room_charge_id);
-                    $('#room_charge_room_id').val(roomCharge.room_id);
-                    $('#charge_month').val(roomCharge.charge_month);
-                    $('#room_price').val(roomCharge.room_price);
-                    $('#due_date').val(roomCharge.due_date);
-                    $('#room_charge_notes').val(roomCharge.notes);
+        window.editRoomCharge = function(roomId, roomName, chargeId) {
+            // ดึงข้อมูลค่าห้องจาก missionData
+            const room = missionData.find(r => r.roomId === roomId);
+            if (!room || !room.roomCharge) {
+                showError('ไม่พบข้อมูลค่าห้อง');
+                return;
+            }
+
+            $('#room_charge_id').val(chargeId);
+            $('#room_charge_room_id').val(roomId);
+            // ใช้ readonly แทน disabled เพื่อให้ส่งค่าไปกับ form ได้
+            $('#room_charge_room_id').prop('readonly', true);
+            $('#room_charge_room_id').css('background-color', '#e9ecef');
+            
+            // ดึงข้อมูลเดือนที่เรียกเก็บจาก API
+            $.get(`/Finance/GetRoomChargeDetail/${chargeId}`, function(response) {
+                if (response.success && response.data) {
+                    const data = response.data;
                     
-                    $('#roomChargeModalLabel').text('แก้ไขข้อมูลค่าห้อง');
-                    $('#roomChargeModal').modal('show');
+                    // ตั้งค่าข้อมูลในฟอร์ม
+                    if (data.charge_month) {
+                        $('#charge_month').val(moment(data.charge_month).format('YYYY-MM'));
+                    }
+                    
+                    if (data.due_date) {
+                        $('#due_date').val(moment(data.due_date).format('YYYY-MM-DD'));
+                    }
+                    
+                    $('#room_price').val(data.room_price || room.roomCharge.amount);
+                    $('#room_charge_notes').val(data.notes || '');
+                    
+                } else {
+                    // ถ้าไม่สามารถดึงข้อมูลจาก API ได้ ให้ใช้ข้อมูลจาก missionData แทน
+                    $('#charge_month').val(moment().format('YYYY-MM'));
+                    $('#due_date').val(moment().add(1, 'months').date(5).format('YYYY-MM-DD'));
+                    $('#room_price').val(room.roomCharge.amount);
+                    $('#room_charge_notes').val('');
                 }
+                
+                $('#roomChargeModalLabel').text('แก้ไขค่าห้อง - ' + roomName);
+                $('#roomChargeModal').modal('show');
+            }).fail(function() {
+                // ถ้า API ไม่ตอบสนอง ให้ใช้ข้อมูลจาก missionData แทน
+                $('#charge_month').val(moment().format('YYYY-MM'));
+                $('#due_date').val(moment().add(1, 'months').date(5).format('YYYY-MM-DD'));
+                $('#room_price').val(room.roomCharge.amount);
+                $('#room_charge_notes').val('');
+                
+                $('#roomChargeModalLabel').text('แก้ไขค่าห้อง - ' + roomName);
+                $('#roomChargeModal').modal('show');
             });
         };
 
@@ -1823,6 +2012,9 @@
                 $('#electricMeterModalLabel').text('บันทึกค่าไฟ');
             } else if ($(this).attr('id') === 'roomChargeModal') {
                 $('#roomChargeModalLabel').text('บันทึกค่าห้อง');
+                // เปิดให้เลือกห้องได้อีกครั้ง
+                $('#room_charge_room_id').prop('readonly', false);
+                $('#room_charge_room_id').css('background-color', '');
             }
         });
 
@@ -1856,7 +2048,7 @@
             });
 
             // ปุ่มต่างๆ
-            $('#refreshDataBtn').on('click', refreshAllData);
+            $('#refreshDataBtn').on('click', safeRefreshData);
             $('#createMissionBtn').on('click', createMission);
             $('#generateMonthlyChargesBtn').on('click', generateMonthlyCharges);
             $('#markAllPaidBtn').on('click', markAllAsPaid);
@@ -1866,10 +2058,31 @@
             $('#exportMissionBtn').on('click', exportMissionData);
 
             // ฟอร์มการบันทึกข้อมูล
-            $('#roomChargeForm').on('submit', handleRoomChargeSubmit);
+                    $('#roomChargeForm').on('submit', handleRoomChargeSubmit);
 
-            // คำนวณอัตโนมัติ
-            $('#electric_old_meter, #electric_new_meter').on('input', calculateElectricBill);
+        // เมื่อเลือกห้องในฟอร์มค่าห้อง ให้ดึงค่าห้องมาแสดงอัตโนมัติ
+        $('#room_charge_room_id').on('change', function() {
+            const roomId = $(this).val();
+            if (roomId) {
+                // ค้นหาห้องใน ViewBag หรือ missionData
+                const viewBagRooms = @Html.Raw(Json.Serialize(ViewBag.Rooms ?? new object[0]));
+                const selectedRoom = viewBagRooms.find(r => r.room_id == roomId);
+                
+                if (selectedRoom && selectedRoom.room_price) {
+                    $('#room_price').val(selectedRoom.room_price);
+                } else {
+                    // ถ้าไม่พบในข้อมูลพร้อมใช้ ให้ดึงจาก API
+                    $.get('/Rooms/GetRoomDetails', { roomId: roomId }, function(response) {
+                        if (response.success && response.data && response.data.room_price) {
+                            $('#room_price').val(response.data.room_price);
+                        }
+                    });
+                }
+            }
+        });
+
+        // คำนวณอัตโนมัติ
+        $('#electric_old_meter, #electric_new_meter').on('input', calculateElectricBill);
 
             // การตั้งค่าอัตโนมัติ
             $('#autoRefresh').on('change', function () {
@@ -1892,7 +2105,7 @@
             const viewBagRooms = @Html.Raw(Json.Serialize(ViewBag.Rooms ?? new object[0]));
             if (viewBagRooms && viewBagRooms.length > 0) {
                 const options = viewBagRooms.map(room => 
-                    `<option value="${room.room_id}">${room.room_name} (฿${room.room_price.toLocaleString()})</option>`
+                    `<option value="${room.room_id}">${room.room_name} (฿${room.room_price ? room.room_price.toLocaleString() : '0'})</option>`
                 ).join('');
                 
                 $('#room_charge_room_id').html(
@@ -1910,7 +2123,7 @@
                     
                     if (rooms.length > 0) {
                         const options = rooms.map(room => 
-                            `<option value="${room.room_id}">${room.room_name} (฿${room.room_price.toLocaleString()})</option>`
+                            `<option value="${room.room_id}">${room.room_name} (฿${room.room_price ? room.room_price.toLocaleString() : '0'})</option>`
                         ).join('');
                         
                         $('#room_charge_room_id').html(
@@ -2091,7 +2304,7 @@
                         showSuccess(response.message || 'อัปเดตผู้เช่าเรียบร้อยแล้ว');
                         
                         // รีโหลดข้อมูล Mission ทั้งหมด
-                        refreshAllData();
+                        safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
                     } else {
                         showError(response.message || 'ไม่สามารถอัปเดตผู้เช่าได้');
                     }
@@ -2125,17 +2338,17 @@
                         url: '/Rooms/RemoveRoomTenant',
                         type: 'POST',
                         data: { roomId: roomId },
-                        success: function(response) {
-                            if (response.success) {
-                                $('#tenantModal').modal('hide');
-                                showSuccess(response.message || 'ยกเลิกผู้เช่าเรียบร้อยแล้ว');
-                                
-                                // รีโหลดข้อมูล Mission ทั้งหมด
-                                refreshAllData();
-                            } else {
-                                showError(response.message || 'ไม่สามารถยกเลิกผู้เช่าได้');
-                            }
-                        },
+                                        success: function(response) {
+                    if (response.success) {
+                        $('#tenantModal').modal('hide');
+                        showSuccess(response.message || 'ยกเลิกผู้เช่าเรียบร้อยแล้ว');
+                        
+                        // รีโหลดข้อมูล Mission ทั้งหมด
+                        safeRefreshData(); // ใช้ฟังก์ชัน safeRefreshData แทน refreshAllData
+                    } else {
+                        showError(response.message || 'ไม่สามารถยกเลิกผู้เช่าได้');
+                    }
+                },
                         error: function() {
                             showError('เกิดข้อผิดพลาดในการยกเลิกผู้เช่า');
                         }
@@ -2157,5 +2370,56 @@
                 $('#tenant_end_date').val(oneYearLater);
             }
         });
+
+        // เพิ่มฟังก์ชันเพื่อสร้างค่าห้องประจำเดือน (กรณีที่ไม่มีค่าห้อง)
+        function manualCreateRoomCharge(roomId, roomName) {
+            $('#room_charge_id').val('');
+            $('#room_charge_room_id').val(roomId);
+            // ใช้ readonly แทน disabled เพื่อให้ส่งค่าไปกับ form ได้
+            $('#room_charge_room_id').prop('readonly', true);
+            $('#room_charge_room_id').css('background-color', '#e9ecef');
+            
+            // ตั้งค่าเดือนปัจจุบัน
+            $('#charge_month').val(moment().format('YYYY-MM'));
+            
+            // ตั้งค่าวันครบกำหนด (วันที่ 5 ของเดือนถัดไป)
+            $('#due_date').val(moment().add(1, 'months').date(5).format('YYYY-MM-DD'));
+            
+            // ตั้งค่าค่าห้องเริ่มต้น (ถ้ามี)
+            const room = missionData.find(r => r.roomId === roomId);
+            if (room && room.defaultPrice) {
+                $('#room_price').val(room.defaultPrice);
+            } else {
+                $('#room_price').val('');
+            }
+            
+            $('#room_charge_notes').val('');
+            $('#roomChargeModalLabel').text('เพิ่มค่าห้อง - ' + roomName);
+            $('#roomChargeModal').modal('show');
+        }
+        
+        // เพิ่มฟังก์ชันใหม่สำหรับตรวจสอบการมีอยู่ของค่าห้องและสร้างถ้าไม่มี
+        window.checkAndSetupRoomCharge = function(roomId, roomName) {
+            const room = missionData.find(r => r.roomId === roomId);
+            
+            // ถ้าไม่พบค่าห้องหรือค่าห้องเป็น 0
+            if (!room || !room.roomCharge || room.roomCharge.amount <= 0) {
+                Swal.fire({
+                    title: 'ไม่พบข้อมูลค่าห้อง',
+                    text: `ห้อง ${roomName} ยังไม่มีการตั้งค่าห้องประจำเดือนนี้ ต้องการสร้างค่าห้องเลยหรือไม่?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'สร้างค่าห้อง',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        manualCreateRoomCharge(roomId, roomName);
+                    }
+                });
+            } else {
+                // มีค่าห้องอยู่แล้ว ให้แสดงรายละเอียด
+                showRoomDetail(roomId);
+            }
+        };
     </script>
 }
