@@ -10,6 +10,12 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="mb-0">จัดการค่าใช้จ่าย</h2>
                 <div class="btn-group">
+                    <!-- ปุ่ม Mission หลัก -->
+                    <button type="button" class="btn btn-success btn-lg" id="createMissionBtn">
+                        <i class="bi bi-list-check me-2"></i>สร้าง Mission เก็บเงิน
+                        <span class="badge bg-white text-success ms-2" id="missionBadge">0</span>
+                    </button>
+
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                         data-bs-target="#waterMeterModal">
                         <i class="bi bi-droplet me-2"></i>บันทึกค่าน้ำ
@@ -18,8 +24,7 @@
                         data-bs-target="#electricMeterModal">
                         <i class="bi bi-lightning me-2"></i>บันทึกค่าไฟ
                     </button>
-                    <button type="button" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#roomChargeModal">
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#roomChargeModal">
                         <i class="bi bi-house me-2"></i>บันทึกค่าห้อง
                     </button>
                 </div>
@@ -83,8 +88,117 @@
         </div>
     </div>
 
-    <!-- แท็บแสดงรายการค่าใช้จ่าย -->
-    <div class="card">
+    <!-- เมนูเลือกโหมดการแสดงผล -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="viewMode" id="missionView" autocomplete="off"
+                            checked>
+                        <label class="btn btn-outline-success" for="missionView">
+                            <i class="bi bi-list-check me-2"></i>Mission View - ภาพรวมทุกห้อง
+                        </label>
+
+                        <input type="radio" class="btn-check" name="viewMode" id="detailView" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="detailView">
+                            <i class="bi bi-table me-2"></i>Detail View - แยกตามประเภท
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="hideCompletedRooms">
+                            <label class="form-check-label" for="hideCompletedRooms">
+                                ซ่อนห้องที่จ่ายครบแล้ว
+                            </label>
+                        </div>
+                        <button class="btn btn-outline-info" id="refreshDataBtn">
+                            <i class="bi bi-arrow-clockwise me-2"></i>รีเฟรชข้อมูล
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- เพิ่มส่วนนี้ไว้ก่อน Mission View Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-gear me-2"></i>เครื่องมือช่วยเหลือ
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-info w-100 btn-senior" id="generateMonthlyChargesBtn">
+                                <i class="bi bi-calendar-plus me-2"></i>
+                                <div>สร้างค่าห้องเดือนนี้</div>
+                                <small class="d-block">สร้างค่าห้องทุกห้องอัตโนมัติ</small>
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-warning w-100 btn-senior" id="printMissionBtn">
+                                <i class="bi bi-printer me-2"></i>
+                                <div>พิมพ์รายการเก็บเงิน</div>
+                                <small class="d-block">พิมพ์ Mission ออกกระดาษ</small>
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-success w-100 btn-senior" id="markAllPaidBtn">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                <div>เก็บเงินทุกห้อง</div>
+                                <small class="d-block">ทำเครื่องหมายเก็บครบทุกห้อง</small>
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-primary w-100 btn-senior" id="voiceGuideBtn">
+                                <i class="bi bi-volume-up me-2"></i>
+                                <div>คำแนะนำเสียง</div>
+                                <small class="d-block">เปิด/ปิดคำแนะนำเสียง</small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission View - ตารางรวมทุกอย่าง -->
+    <div class="card" id="missionViewCard">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-list-check me-2"></i>Mission เก็บเงินเดือนนี้ - ภาพรวมทุกห้อง
+                <small class="ms-3">วันที่: <span id="currentDate"></span></small>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="missionTable" class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="text-center" style="width: 8%">ห้อง</th>
+                            <th style="width: 15%">ผู้เช่า</th>
+                            <th class="text-center" style="width: 12%">ค่าห้อง</th>
+                            <th class="text-center" style="width: 12%">ค่าน้ำ</th>
+                            <th class="text-center" style="width: 12%">ค่าไฟ</th>
+                            <th class="text-center" style="width: 12%">รวมทั้งหมด</th>
+                            <th class="text-center" style="width: 15%">สถานะ</th>
+                            <th class="text-center" style="width: 14%">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="missionTableBody">
+                        <!-- ข้อมูลจะถูกโหลดด้วย JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail View - แท็บแสดงรายการค่าใช้จ่าย (เดิม) -->
+    <div class="card" id="detailViewCard" style="display: none;">
         <div class="card-body">
             <ul class="nav nav-tabs" id="financeTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -168,6 +282,75 @@
     </div>
 </div>
 
+<!-- Modal สำหรับยืนยันการเก็บเงิน -->
+<div class="modal fade" id="collectPaymentModal" tabindex="-1" aria-labelledby="collectPaymentModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="collectPaymentModalLabel">ยืนยันการเก็บเงิน</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="bi bi-wallet2 text-success" style="font-size: 3rem;"></i>
+                    <h4 class="mt-3">ยืนยันการเก็บเงิน</h4>
+                    <p class="lead" id="paymentDetails">ห้อง XXX - รวม ฿X,XXX</p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        กรุณาตรวจสอบยอดเงินให้ถูกต้องก่อนยืนยัน
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-success" id="confirmPaymentBtn">
+                    <i class="bi bi-check-circle me-2"></i>ยืนยันเก็บเงิน
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- เพิ่ม Modal สำหรับยืนยันการดำเนินการ -->
+<div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmActionModalLabel">ยืนยันการดำเนินการ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmActionContent">
+                <!-- เนื้อหาจะถูกใส่ด้วย JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" id="confirmActionBtn">ยืนยัน</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal แสดงรายละเอียดห้อง -->
+<div class="modal fade" id="roomDetailModal" tabindex="-1" aria-labelledby="roomDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roomDetailModalLabel">รายละเอียดค่าใช้จ่าย</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="roomDetailContent">
+                <!-- เนื้อหาจะถูกโหลดด้วย JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- เก็บ Modal เดิมไว้ -->
 <!-- Modal สำหรับบันทึกค่าน้ำ -->
 <div class="modal fade" id="waterMeterModal" tabindex="-1" aria-labelledby="waterMeterModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -342,336 +525,596 @@
     </div>
 </div>
 
+<style>
+    /* เพิ่ม CSS เพื่อให้ตารางดูง่ายสำหรับผู้สูงอายุ */
+    #missionTable {
+        font-size: 1.1rem;
+    }
+
+    #missionTable th {
+        font-weight: bold;
+        text-align: center;
+        vertical-align: middle;
+        background-color: #198754 !important;
+        color: white !important;
+    }
+
+    #missionTable td {
+        vertical-align: middle;
+        padding: 12px 8px;
+    }
+
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+
+    .status-paid {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .status-partial {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+
+    .status-unpaid {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .room-number {
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #0d6efd;
+    }
+
+    .amount-display {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .amount-paid {
+        color: #198754;
+    }
+
+    .amount-unpaid {
+        color: #dc3545;
+    }
+
+    .amount-total {
+        color: #0d6efd;
+        font-size: 1.2rem;
+    }
+
+    /* ปุ่มขนาดใหญ่สำหรับผู้สูงอายุ */
+    .btn-senior {
+        padding: 15px;
+        font-size: 1.1rem;
+        line-height: 1.3;
+        border-radius: 10px;
+    }
+
+    .btn-senior i {
+        font-size: 1.5rem;
+    }
+
+    .btn-senior small {
+        font-size: 0.85rem;
+        opacity: 0.8;
+    }
+
+    /* เอฟเฟกต์สำหรับการโต้ตอบด้วยเสียง */
+    .voice-active {
+        animation: pulse-voice 2s infinite;
+        box-shadow: 0 0 20px rgba(13, 110, 253, 0.6);
+    }
+
+    @@keyframes pulse-voice {
+        0% { box-shadow: 0 0 20px rgba(13, 110, 253, 0.6); }
+        50% { box-shadow: 0 0 30px rgba(13, 110, 253, 0.8); }
+        100% { box-shadow: 0 0 20px rgba(13, 110, 253, 0.6); }
+    }
+
+    /* โหมดตัวอักษรใหญ่ */
+    .large-text {
+        font-size: 1.2rem !important;
+    }
+
+    .large-text .table {
+        font-size: 1.1rem;
+    }
+
+    .large-text .btn {
+        font-size: 1.1rem;
+        padding: 10px 16px;
+    }
+
+    /* การเน้นแถวที่สำคัญ */
+    .priority-high {
+        background-color: #fff5f5 !important;
+        border-left: 4px solid #dc3545;
+    }
+
+    .priority-medium {
+        background-color: #fffbf0 !important;
+        border-left: 4px solid #ffc107;
+    }
+
+    .priority-low {
+        background-color: #f0f9f4 !important;
+        border-left: 4px solid #198754;
+    }
+
+    [data-bs-theme="dark"] .priority-high {
+        background-color: #2d1b1b !important;
+    }
+
+    [data-bs-theme="dark"] .priority-medium {
+        background-color: #2d2b1b !important;
+    }
+
+    [data-bs-theme="dark"] .priority-low {
+        background-color: #1b2d20 !important;
+    }
+
+    /* ไฮไลท์ปุ่มที่สำคัญ */
+    .btn-highlight {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
+    }
+
+    .btn-highlight:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    /* ข้อความแนะนำ */
+    .guide-text {
+        background: linear-gradient(45deg, #e3f2fd, #f3e5f5);
+        border: 1px solid #2196f3;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        animation: gentle-glow 3s ease-in-out infinite;
+    }
+
+    @@keyframes gentle-glow {
+        0%, 100% { box-shadow: 0 0 5px rgba(33, 150, 243, 0.3); }
+        50% { box-shadow: 0 0 15px rgba(33, 150, 243, 0.5); }
+    }
+
+    [data-bs-theme="dark"] .guide-text {
+        background: linear-gradient(45deg, #1a237e, #4a148c);
+        border-color: #3f51b5;
+        color: #e8eaf6;
+    }
+
+    /* แถบความคืบหน้า */
+    .progress-mission {
+        height: 25px;
+        border-radius: 12px;
+        background-color: #f8f9fa;
+        overflow: hidden;
+    }
+
+    .progress-mission .progress-bar {
+        border-radius: 12px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* จำลองการพิมพ์ */
+    @@media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .print-only {
+            display: block !important;
+        }
+        
+        body {
+            font-size: 14pt;
+            background: white !important;
+            color: black !important;
+        }
+        
+        .table {
+            border: 1px solid #000 !important;
+        }
+        
+        .table th,
+        .table td {
+            border: 1px solid #000 !important;
+            padding: 8pt !important;
+        }
+    }
+
+    .print-only {
+        display: none;
+    }
+</style>
+
 @section Scripts {
     <script>
         $(document).ready(function () {
-            // ตั้งค่า moment.js เป็นภาษาไทย
-            moment.locale('th');
+            // ตั้งค่าวันที่ปัจจุบัน
+            $('#currentDate').text(moment().format('DD/MM/YYYY'));
 
-            // กำหนดค่า DataTable สำหรับค่าน้ำ
-            var waterTable = $('#waterMeterTable').DataTable({
-                "processing": true,
-                "serverSide": false,
-                "paging": true,
-                "lengthChange": true,
-                "searching": true,
-                "ordering": true,
-                "info": true,
-                "autoWidth": false,
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
-                },
-                "order": [[6, 'desc']],
-                "pageLength": 25,
-                "responsive": true,
-                "ajax": {
-                    "url": "/Finance/GetWaterMeters",
-                    "type": "GET",
-                    "datatype": "json",
-                    "error": function (xhr, error, thrown) {
-                        console.log("Error loading water meters:", error);
-                        Swal.fire({
-                            title: 'เกิดข้อผิดพลาด!',
-                            text: 'ไม่สามารถโหลดข้อมูลค่าน้ำได้',
-                            icon: 'error',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000
-                        });
-                    }
-                },
-                "columns": [
-                    { "data": "room_name", "title": "ห้อง" },
-                    { "data": "old_meter", "title": "เลขมิเตอร์เก่า" },
-                    { "data": "new_meter", "title": "เลขมิเตอร์ใหม่" },
-                    { "data": "water_units", "title": "จำนวนหน่วย" },
-                    {
-                        "data": "water_bill",
-                        "title": "ค่าน้ำ",
-                        "render": function (data) {
-                            return "฿" + parseFloat(data || 0).toLocaleString();
-                        }
-                    },
-                    {
-                        "data": "is_paid",
-                        "title": "สถานะ",
-                        "render": function (data) {
-                            return data ?
-                                '<span class="badge bg-success">เก็บแล้ว</span>' :
-                                '<span class="badge bg-warning">ยังไม่ได้เก็บ</span>';
-                        }
-                    },
-                    {
-                        "data": "meter_date",
-                        "title": "วันที่บันทึก",
-                        "render": function (data) {
-                            return moment(data).format('DD/MM/YYYY');
-                        }
-                    },
-                    {
-                        "data": "water_meter_id",
-                        "title": "จัดการ",
-                        "className": "text-center",
-                        "orderable": false,
-                        "render": function (data, type, row) {
-                            let buttons = `
-                                    <button class="btn btn-sm btn-warning me-1" onclick="editWaterMeter(${data})">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>`;
+            // โหลดข้อมูลสถิติเริ่มต้น
+            updateStatistics();
 
-                            if (!row.is_paid) {
-                                buttons += `
-                                        <button class="btn btn-sm btn-success me-1" onclick="markWaterAsPaid(${data})">
-                                            <i class="bi bi-check-circle"></i>
-                                        </button>`;
-                            }
+            // โหลดข้อมูล Mission เริ่มต้น
+            loadMissionData();
 
-                            buttons += `
-                                    <button class="btn btn-sm btn-danger" onclick="deleteWaterMeter(${data})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>`;
+            // ตั้งค่า DataTables สำหรับ Detail View
+            initializeDetailTables();
 
-                            return buttons;
-                        }
-                    }
-                ]
+            // Event listeners สำหรับการเปลี่ยนโหมดการแสดงผล
+            $('input[name="viewMode"]').on('change', function () {
+                const isMissionView = $('#missionView').is(':checked');
+                $('#missionViewCard').toggle(isMissionView);
+                $('#detailViewCard').toggle(!isMissionView);
+                
+                if (isMissionView) {
+                    $('#missionViewCard').addClass('active-view');
+                    $('#detailViewCard').removeClass('active-view');
+                    loadMissionData();
+                } else {
+                    $('#detailViewCard').addClass('active-view');
+                    $('#missionViewCard').removeClass('active-view');
+                }
             });
 
-            // กำหนดค่า DataTable สำหรับค่าไฟ
-            var electricTable = $('#electricMeterTable').DataTable({
-                "processing": true,
-                "serverSide": false,
-                "paging": true,
-                "lengthChange": true,
-                "searching": true,
-                "ordering": true,
-                "info": true,
-                "autoWidth": false,
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
-                },
-                "order": [[6, 'desc']],
-                "pageLength": 25,
-                "responsive": true,
-                "ajax": {
-                    "url": "/Finance/GetElectricMeters",
-                    "type": "GET",
-                    "datatype": "json",
-                    "error": function (xhr, error, thrown) {
-                        console.log("Error loading electric meters:", error);
-                    }
-                },
-                "columns": [
-                    { "data": "room_name", "title": "ห้อง" },
-                    { "data": "old_meter", "title": "เลขมิเตอร์เก่า" },
-                    { "data": "new_meter", "title": "เลขมิเตอร์ใหม่" },
-                    { "data": "electric_units", "title": "จำนวนหน่วย" },
-                    {
-                        "data": "electric_bill",
-                        "title": "ค่าไฟ",
-                        "render": function (data) {
-                            return "฿" + parseFloat(data || 0).toLocaleString();
-                        }
-                    },
-                    {
-                        "data": "is_paid",
-                        "title": "สถานะ",
-                        "render": function (data) {
-                            return data ?
-                                '<span class="badge bg-success">เก็บแล้ว</span>' :
-                                '<span class="badge bg-warning">ยังไม่ได้เก็บ</span>';
-                        }
-                    },
-                    {
-                        "data": "meter_date",
-                        "title": "วันที่บันทึก",
-                        "render": function (data) {
-                            return moment(data).format('DD/MM/YYYY');
-                        }
-                    },
-                    {
-                        "data": "electric_meter_id",
-                        "title": "จัดการ",
-                        "className": "text-center",
-                        "orderable": false,
-                        "render": function (data, type, row) {
-                            let buttons = `
-                                    <button class="btn btn-sm btn-warning me-1" onclick="editElectricMeter(${data})">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>`;
-
-                            if (!row.is_paid) {
-                                buttons += `
-                                        <button class="btn btn-sm btn-success me-1" onclick="markElectricAsPaid(${data})">
-                                            <i class="bi bi-check-circle"></i>
-                                        </button>`;
+            // Event listener สำหรับปุ่มสร้าง Mission
+            $('#createMissionBtn').on('click', function () {
+                Swal.fire({
+                    title: 'สร้าง Mission เก็บเงิน',
+                    text: 'คุณต้องการสร้างค่าห้องประจำเดือนนี้สำหรับทุกห้องใช่หรือไม่?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'ใช่, สร้างเลย',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.post('/Finance/GenerateMonthlyCharges', function (response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    title: 'สำเร็จ!',
+                                    text: response.message,
+                                    icon: 'success',
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 3000
+                                });
+                                loadMissionData();
+                                updateStatistics();
+                            } else {
+                                Swal.fire('เกิดข้อผิดพลาด!', response.message, 'error');
                             }
-
-                            buttons += `
-                                    <button class="btn btn-sm btn-danger" onclick="deleteElectricMeter(${data})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>`;
-
-                            return buttons;
-                        }
-                    }
-                ]
-            });
-
-            // กำหนดค่า DataTable สำหรับค่าห้อง
-            var roomChargeTable = $('#roomChargeTable').DataTable({
-                "processing": true,
-                "serverSide": false,
-                "paging": true,
-                "lengthChange": true,
-                "searching": true,
-                "ordering": true,
-                "info": true,
-                "autoWidth": false,
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
-                },
-                "order": [[5, 'desc']],
-                "pageLength": 25,
-                "responsive": true,
-                "ajax": {
-                    "url": "/Finance/GetRoomCharges",
-                    "type": "GET",
-                    "datatype": "json",
-                    "error": function (xhr, error, thrown) {
-                        console.log("Error loading room charges:", error);
-                    }
-                },
-                "columns": [
-                    { "data": "room_name", "title": "ห้อง" },
-                    { "data": "tenant_name", "title": "ผู้เช่า", "defaultContent": "-" },
-                    {
-                        "data": "room_price",
-                        "title": "ค่าห้อง",
-                        "render": function (data) {
-                            return "฿" + parseFloat(data || 0).toLocaleString();
-                        }
-                    },
-                    {
-                        "data": "charge_month",
-                        "title": "เดือน",
-                        "render": function (data) {
-                            return moment(data).format('MMMM YYYY');
-                        }
-                    },
-                    {
-                        "data": "is_paid",
-                        "title": "สถานะ",
-                        "render": function (data) {
-                            return data ?
-                                '<span class="badge bg-success">เก็บแล้ว</span>' :
-                                '<span class="badge bg-warning">ยังไม่ได้เก็บ</span>';
-                        }
-                    },
-                    {
-                        "data": "due_date",
-                        "title": "วันที่ครบกำหนด",
-                        "render": function (data) {
-                            return moment(data).format('DD/MM/YYYY');
-                        }
-                    },
-                    {
-                        "data": "room_charge_id",
-                        "title": "จัดการ",
-                        "className": "text-center",
-                        "orderable": false,
-                        "render": function (data, type, row) {
-                            let buttons = `
-                                    <button class="btn btn-sm btn-warning me-1" onclick="editRoomCharge(${data})">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>`;
-
-                            if (!row.is_paid) {
-                                buttons += `
-                                        <button class="btn btn-sm btn-success me-1" onclick="markRoomChargeAsPaid(${data})">
-                                            <i class="bi bi-check-circle"></i>
-                                        </button>`;
-                            }
-
-                            buttons += `
-                                    <button class="btn btn-sm btn-danger" onclick="deleteRoomCharge(${data})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>`;
-
-                            return buttons;
-                        }
-                    }
-                ]
-            });
-
-            // โหลดรายการห้อง
-            function loadRooms() {
-                $.ajax({
-                    url: '/Rooms/GetAvailableRooms',
-                    type: 'GET',
-                    success: function (rooms) {
-                        const selects = ['#room_id', '#electric_room_id', '#room_charge_room_id'];
-                        selects.forEach(select => {
-                            const element = $(select);
-                            element.empty().append('<option value="">-- เลือกห้อง --</option>');
-                            rooms.forEach(room => {
-                                element.append(`<option value="${room.room_id}">${room.room_name}</option>`);
-                            });
-                        });
-                    },
-                    error: function (xhr, error, thrown) {
-                        console.log("Error loading rooms:", error);
-                        Swal.fire({
-                            title: 'เกิดข้อผิดพลาด!',
-                            text: 'ไม่สามารถโหลดรายการห้องได้',
-                            icon: 'error',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000
+                        }).fail(function () {
+                            Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
                         });
                     }
                 });
-            }
+            });
 
-            // คำนวณค่าน้ำอัตโนมัติ
-            function calculateWaterBill() {
-                const oldMeter = parseInt($('#old_meter').val()) || 0;
-                const newMeter = parseInt($('#new_meter').val()) || 0;
-                const units = newMeter - oldMeter;
-
-                if (units >= 0) {
-                    $('#water_units').val(units);
-                    // คำนวณค่าน้ำ (ตัวอย่าง: หน่วยละ 15 บาท)
-                    const bill = units * 15;
-                    $('#water_bill').val(bill);
+            // Event listener สำหรับปุ่มรีเฟรช
+            $('#refreshDataBtn').on('click', function () {
+                if ($('#missionView').is(':checked')) {
+                    loadMissionData();
                 } else {
-                    $('#water_units').val(0);
-                    $('#water_bill').val(0);
+                    // รีเฟรช DataTables
+                    if ($.fn.DataTable.isDataTable('#waterMeterTable')) {
+                        $('#waterMeterTable').DataTable().ajax.reload();
+                    }
+                    if ($.fn.DataTable.isDataTable('#electricMeterTable')) {
+                        $('#electricMeterTable').DataTable().ajax.reload();
+                    }
+                    if ($.fn.DataTable.isDataTable('#roomChargeTable')) {
+                        $('#roomChargeTable').DataTable().ajax.reload();
+                    }
                 }
-            }
+                updateStatistics();
+                
+                Swal.fire({
+                    title: 'รีเฟรชข้อมูลแล้ว!',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            });
 
-            // คำนวณค่าไฟอัตโนมัติ
-            function calculateElectricBill() {
-                const oldMeter = parseInt($('#electric_old_meter').val()) || 0;
-                const newMeter = parseInt($('#electric_new_meter').val()) || 0;
-                const units = newMeter - oldMeter;
-
-                if (units >= 0) {
-                    $('#electric_units').val(units);
-                    // คำนวณค่าไฟ (ตัวอย่าง: หน่วยละ 5 บาท)
-                    const bill = units * 5;
-                    $('#electric_bill').val(bill);
-                } else {
-                    $('#electric_units').val(0);
-                    $('#electric_bill').val(0);
+            // Event listener สำหรับการซ่อนห้องที่จ่ายครบแล้ว
+            $('#hideCompletedRooms').on('change', function () {
+                if ($('#missionView').is(':checked')) {
+                    loadMissionData();
                 }
-            }
+            });
 
-            // Event listeners
-            $('#old_meter, #new_meter').on('input', calculateWaterBill);
-            $('#electric_old_meter, #electric_new_meter').on('input', calculateElectricBill);
+            // ฟังก์ชันสำหรับ Detail Tables ที่ปรับปรุงแล้ว
+            function initializeDetailTables() {
+                // กำหนดค่า DataTable สำหรับค่าน้ำ
+                var waterTable = $('#waterMeterTable').DataTable({
+                    "processing": true,
+                    "serverSide": false,
+                    "paging": true,
+                    "lengthChange": true,
+                    "searching": true,
+                    "ordering": true,
+                    "info": true,
+                    "autoWidth": false,
+                    "language": {
+                        "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
+                    },
+                    "order": [[6, 'desc']],
+                    "pageLength": 25,
+                    "responsive": true,
+                    "ajax": {
+                        "url": "/Finance/GetWaterMeters",
+                        "type": "GET",
+                        "datatype": "json",
+                        "error": function (xhr, error, thrown) {
+                            console.log("Error loading water meters:", error);
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: 'ไม่สามารถโหลดข้อมูลค่าน้ำได้',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    },
+                    "columns": [
+                        { "data": "room_name", "title": "ห้อง" },
+                        { "data": "old_meter", "title": "เลขมิเตอร์เก่า" },
+                        { "data": "new_meter", "title": "เลขมิเตอร์ใหม่" },
+                        { "data": "water_units", "title": "จำนวนหน่วย" },
+                        {
+                            "data": "water_bill",
+                            "title": "ค่าน้ำ",
+                            "render": function (data) {
+                                return "฿" + parseFloat(data || 0).toLocaleString();
+                            }
+                        },
+                        {
+                            "data": "is_paid",
+                            "title": "สถานะ",
+                            "render": function (data) {
+                                return data ?
+                                    '<span class="badge bg-success">เก็บแล้ว</span>' :
+                                    '<span class="badge bg-warning">ยังไม่ได้เก็บ</span>';
+                            }
+                        },
+                        {
+                            "data": "meter_date",
+                            "title": "วันที่บันทึก",
+                            "render": function (data) {
+                                return moment(data).format('DD/MM/YYYY');
+                            }
+                        },
+                        {
+                            "data": "water_meter_id",
+                            "title": "จัดการ",
+                            "className": "text-center",
+                            "orderable": false,
+                            "render": function (data, type, row) {
+                                let buttons = '<button class="btn btn-sm btn-warning me-1" onclick="editWaterMeter(' + data + ')" title="แก้ไข">' +
+                                    '<i class="bi bi-pencil"></i>' +
+                                    '</button>';
+
+                                if (!row.is_paid) {
+                                    buttons += '<button class="btn btn-sm btn-success me-1" onclick="markWaterAsPaid(' + data + ')" title="เก็บเงินแล้ว">' +
+                                        '<i class="bi bi-check-circle"></i>' +
+                                        '</button>';
+                                }
+
+                                buttons += '<button class="btn btn-sm btn-danger" onclick="deleteWaterMeter(' + data + ')" title="ลบ">' +
+                                    '<i class="bi bi-trash"></i>' +
+                                    '</button>';
+
+                                return buttons;
+                            }
+                        }
+                    ]
+                });
+
+                // กำหนดค่า DataTable สำหรับค่าไฟ
+                var electricTable = $('#electricMeterTable').DataTable({
+                    "processing": true,
+                    "serverSide": false,
+                    "paging": true,
+                    "lengthChange": true,
+                    "searching": true,
+                    "ordering": true,
+                    "info": true,
+                    "autoWidth": false,
+                    "language": {
+                        "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
+                    },
+                    "order": [[6, 'desc']],
+                    "pageLength": 25,
+                    "responsive": true,
+                    "ajax": {
+                        "url": "/Finance/GetElectricMeters",
+                        "type": "GET",
+                        "datatype": "json",
+                        "error": function (xhr, error, thrown) {
+                            console.log("Error loading electric meters:", error);
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: 'ไม่สามารถโหลดข้อมูลค่าไฟได้',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    },
+                    "columns": [
+                        { "data": "room_name", "title": "ห้อง" },
+                        { "data": "old_meter", "title": "เลขมิเตอร์เก่า" },
+                        { "data": "new_meter", "title": "เลขมิเตอร์ใหม่" },
+                        { "data": "electric_units", "title": "จำนวนหน่วย" },
+                        {
+                            "data": "electric_bill",
+                            "title": "ค่าไฟ",
+                            "render": function (data) {
+                                return "฿" + parseFloat(data || 0).toLocaleString();
+                            }
+                        },
+                        {
+                            "data": "is_paid",
+                            "title": "สถานะ",
+                            "render": function (data) {
+                                return data ?
+                                    '<span class="badge bg-success">เก็บแล้ว</span>' :
+                                    '<span class="badge bg-warning">ยังไม่ได้เก็บ</span>';
+                            }
+                        },
+                        {
+                            "data": "meter_date",
+                            "title": "วันที่บันทึก",
+                            "render": function (data) {
+                                return moment(data).format('DD/MM/YYYY');
+                            }
+                        },
+                        {
+                            "data": "electric_meter_id",
+                            "title": "จัดการ",
+                            "className": "text-center",
+                            "orderable": false,
+                            "render": function (data, type, row) {
+                                let buttons = '<button class="btn btn-sm btn-warning me-1" onclick="editElectricMeter(' + data + ')" title="แก้ไข">' +
+                                    '<i class="bi bi-pencil"></i>' +
+                                    '</button>';
+
+                                if (!row.is_paid) {
+                                    buttons += '<button class="btn btn-sm btn-success me-1" onclick="markElectricAsPaid(' + data + ')" title="เก็บเงินแล้ว">' +
+                                        '<i class="bi bi-check-circle"></i>' +
+                                        '</button>';
+                                }
+
+                                buttons += '<button class="btn btn-sm btn-danger" onclick="deleteElectricMeter(' + data + ')" title="ลบ">' +
+                                    '<i class="bi bi-trash"></i>' +
+                                    '</button>';
+
+                                return buttons;
+                            }
+                        }
+                    ]
+                });
+
+                // กำหนดค่า DataTable สำหรับค่าห้อง
+                var roomChargeTable = $('#roomChargeTable').DataTable({
+                    "processing": true,
+                    "serverSide": false,
+                    "paging": true,
+                    "lengthChange": true,
+                    "searching": true,
+                    "ordering": true,
+                    "info": true,
+                    "autoWidth": false,
+                    "language": {
+                        "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/th.json"
+                    },
+                    "order": [[5, 'desc']],
+                    "pageLength": 25,
+                    "responsive": true,
+                    "ajax": {
+                        "url": "/Finance/GetRoomCharges",
+                        "type": "GET",
+                        "datatype": "json",
+                        "error": function (xhr, error, thrown) {
+                            console.log("Error loading room charges:", error);
+                            Swal.fire({
+                                title: 'เกิดข้อผิดพลาด!',
+                                text: 'ไม่สามารถโหลดข้อมูลค่าห้องได้',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    },
+                    "columns": [
+                        { "data": "room_name", "title": "ห้อง" },
+                        { "data": "tenant_name", "title": "ผู้เช่า", "defaultContent": "-" },
+                        {
+                            "data": "room_price",
+                            "title": "ค่าห้อง",
+                            "render": function (data) {
+                                return "฿" + parseFloat(data || 0).toLocaleString();
+                            }
+                        },
+                        {
+                            "data": "charge_month",
+                            "title": "เดือน",
+                            "render": function (data) {
+                                return moment(data).format('MMMM YYYY');
+                            }
+                        },
+                        {
+                            "data": "is_paid",
+                            "title": "สถานะ",
+                            "render": function (data) {
+                                return data ?
+                                    '<span class="badge bg-success">เก็บแล้ว</span>' :
+                                    '<span class="badge bg-warning">ยังไม่ได้เก็บ</span>';
+                            }
+                        },
+                        {
+                            "data": "due_date",
+                            "title": "วันที่ครบกำหนด",
+                            "render": function (data) {
+                                return moment(data).format('DD/MM/YYYY');
+                            }
+                        },
+                        {
+                            "data": "room_charge_id",
+                            "title": "จัดการ",
+                            "className": "text-center",
+                            "orderable": false,
+                            "render": function (data, type, row) {
+                                let buttons = '<button class="btn btn-sm btn-warning me-1" onclick="editRoomCharge(' + data + ')" title="แก้ไข">' +
+                                    '<i class="bi bi-pencil"></i>' +
+                                    '</button>';
+
+                                if (!row.is_paid) {
+                                    buttons += '<button class="btn btn-sm btn-success me-1" onclick="markRoomChargeAsPaid(' + data + ')" title="เก็บเงินแล้ว">' +
+                                        '<i class="bi bi-check-circle"></i>' +
+                                        '</button>';
+                                }
+
+                                buttons += '<button class="btn btn-sm btn-danger" onclick="deleteRoomCharge(' + data + ')" title="ลบ">' +
+                                    '<i class="bi bi-trash"></i>' +
+                                    '</button>';
+
+                                return buttons;
+                            }
+                        }
+                    ]
+                });
+            }
 
             // จัดการการส่งฟอร์มค่าน้ำ
             $('#waterMeterForm').on('submit', function (e) {
@@ -697,7 +1140,12 @@
                     data: formData,
                     success: function (response) {
                         $('#waterMeterModal').modal('hide');
-                        waterTable.ajax.reload();
+                        if ($.fn.DataTable.isDataTable('#waterMeterTable')) {
+                            $('#waterMeterTable').DataTable().ajax.reload();
+                        }
+                        if ($('#missionView').is(':checked')) {
+                            loadMissionData();
+                        }
                         updateStatistics();
                         Swal.fire({
                             title: 'สำเร็จ!',
@@ -714,12 +1162,7 @@
                         Swal.fire({
                             title: 'เกิดข้อผิดพลาด!',
                             text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
-                            icon: 'error',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000,
-                            timerProgressBar: true
+                            icon: 'error'
                         });
                     }
                 });
@@ -749,7 +1192,12 @@
                     data: formData,
                     success: function (response) {
                         $('#electricMeterModal').modal('hide');
-                        electricTable.ajax.reload();
+                        if ($.fn.DataTable.isDataTable('#electricMeterTable')) {
+                            $('#electricMeterTable').DataTable().ajax.reload();
+                        }
+                        if ($('#missionView').is(':checked')) {
+                            loadMissionData();
+                        }
                         updateStatistics();
                         Swal.fire({
                             title: 'สำเร็จ!',
@@ -766,12 +1214,7 @@
                         Swal.fire({
                             title: 'เกิดข้อผิดพลาด!',
                             text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
-                            icon: 'error',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000,
-                            timerProgressBar: true
+                            icon: 'error'
                         });
                     }
                 });
@@ -799,7 +1242,12 @@
                     data: formData,
                     success: function (response) {
                         $('#roomChargeModal').modal('hide');
-                        roomChargeTable.ajax.reload();
+                        if ($.fn.DataTable.isDataTable('#roomChargeTable')) {
+                            $('#roomChargeTable').DataTable().ajax.reload();
+                        }
+                        if ($('#missionView').is(':checked')) {
+                            loadMissionData();
+                        }
                         updateStatistics();
                         Swal.fire({
                             title: 'สำเร็จ!',
@@ -816,33 +1264,11 @@
                         Swal.fire({
                             title: 'เกิดข้อผิดพลาด!',
                             text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
-                            icon: 'error',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000,
-                            timerProgressBar: true
+                            icon: 'error'
                         });
                     }
                 });
             });
-
-            // อัพเดทสถิติ
-            function updateStatistics() {
-                $.ajax({
-                    url: '/Finance/GetStatistics',
-                    type: 'GET',
-                    success: function (stats) {
-                        $('#totalIncome').text('฿' + stats.totalIncome.toLocaleString());
-                        $('#totalCollected').text('฿' + stats.totalCollected.toLocaleString());
-                        $('#totalPending').text('฿' + stats.totalPending.toLocaleString());
-                        $('#pendingRoomsCount').text(stats.pendingRooms);
-                    },
-                    error: function () {
-                        console.log("Error loading statistics");
-                    }
-                });
-            }
 
             // ฟังก์ชันล้างฟอร์ม
             function clearForm(formId) {
@@ -853,69 +1279,611 @@
             // Event listeners สำหรับ modal
             $('.modal').on('hidden.bs.modal', function () {
                 const formId = '#' + $(this).find('form').attr('id');
-                clearForm(formId);
+                if ($(formId).length) {
+                    clearForm(formId);
+                }
             });
 
-            // โหลดข้อมูลเริ่มต้น
-            loadRooms();
-            updateStatistics();
+            // เพิ่มฟังก์ชันสำหรับผู้สูงอายุ
+            let voiceGuideEnabled = localStorage.getItem('voiceGuide') === 'true';
+            let currentAction = null;
+            let missionData = []; // ตัวแปรสำหรับเก็บข้อมูล Mission
+            
+            // ตั้งค่าเริ่มต้นสำหรับ Voice Guide
+            updateVoiceGuideButton();
+            
+            // ปุ่มสร้างค่าห้องเดือนนี้
+            $('#generateMonthlyChargesBtn').on('click', function() {
+                currentAction = 'generateMonthlyCharges';
+                showConfirmAction(
+                    'สร้างค่าห้องประจำเดือน',
+                    'คุณต้องการสร้างค่าห้องประจำเดือนสำหรับทุกห้องใช่หรือไม่?<br><small class="text-muted">ระบบจะสร้างค่าห้องสำหรับห้องที่ยังไม่มีค่าห้องในเดือนนี้</small>',
+                    'สร้าง',
+                    'btn-info'
+                );
+                
+                if (voiceGuideEnabled) {
+                    speak('คุณต้องการสร้างค่าห้องประจำเดือนหรือไม่');
+                }
+            });
+            
+            // ปุ่มพิมพ์รายการ
+            $('#printMissionBtn').on('click', function() {
+                if (voiceGuideEnabled) {
+                    speak('กำลังเตรียมรายการสำหรับพิมพ์');
+                }
+                printMissionList();
+            });
+            
+            // ปุ่มเก็บเงินทุกห้อง
+            $('#markAllPaidBtn').on('click', function() {
+                const unpaidCount = missionData.filter(room => !room.isFullyPaid).length;
+                if (unpaidCount === 0) {
+                    Swal.fire({
+                        title: 'ไม่มีห้องที่ต้องเก็บเงิน',
+                        text: 'ทุกห้องจ่ายเงินครบแล้ว',
+                        icon: 'info'
+                    });
+                    return;
+                }
+                
+                currentAction = 'markAllPaid';
+                showConfirmAction(
+                    'เก็บเงินทุกห้อง',
+                    'คุณต้องการทำเครื่องหมายว่าเก็บเงินครบทุกห้องแล้วใช่หรือไม่?<br><strong class="text-danger">จำนวนห้องที่จะได้รับผลกระทบ: ' + unpaidCount + ' ห้อง</strong><br><small class="text-warning">การกระทำนี้ไม่สามารถยกเลิกได้</small>',
+                    'เก็บครบทุกห้อง',
+                    'btn-success'
+                );
+                
+                if (voiceGuideEnabled) {
+                    speak('พบห้องที่ยังไม่ได้เก็บเงิน ' + unpaidCount + ' ห้อง คุณต้องการเก็บเงินทุกห้องหรือไม่');
+                }
+            });
+            
+            // ปุ่มคำแนะนำเสียง
+            $('#voiceGuideBtn').on('click', function() {
+                voiceGuideEnabled = !voiceGuideEnabled;
+                localStorage.setItem('voiceGuide', voiceGuideEnabled.toString());
+                updateVoiceGuideButton();
+                
+                if (voiceGuideEnabled) {
+                    speak('เปิดการแนะนำด้วยเสียงแล้ว');
+                }
+            });
+            
+            // ยืนยันการดำเนินการ
+            $('#confirmActionBtn').on('click', function() {
+                executeAction();
+            });
+            
+            // ฟังก์ชันแสดง Confirm Modal
+            function showConfirmAction(title, content, buttonText, buttonClass) {
+                $('#confirmActionModalLabel').text(title);
+                $('#confirmActionContent').html(content);
+                $('#confirmActionBtn').text(buttonText).removeClass('btn-primary btn-info btn-success btn-warning btn-danger').addClass(buttonClass);
+                $('#confirmActionModal').modal('show');
+            }
+            
+            // ฟังก์ชันดำเนินการตาม Action
+            function executeAction() {
+                $('#confirmActionModal').modal('hide');
+                
+                switch(currentAction) {
+                    case 'generateMonthlyCharges':
+                        generateMonthlyCharges();
+                        break;
+                    case 'markAllPaid':
+                        markAllRoomsAsPaid();
+                        break;
+                }
+            }
+            
+            // ฟังก์ชันสร้างค่าห้องประจำเดือน
+            function generateMonthlyCharges() {
+                Swal.fire({
+                    title: 'กำลังสร้างค่าห้อง...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                $.ajax({
+                    url: '/Finance/GenerateMonthlyCharges',
+                    type: 'POST',
+                    success: function(response) {
+                        Swal.close();
+                        if (response.success) {
+                            Swal.fire({
+                                title: 'สำเร็จ!',
+                                html: response.message + '<br><strong>จำนวนที่สร้าง: ' + response.createdCount + ' ห้อง</strong>',
+                                icon: 'success'
+                            });
+                            
+                            if (voiceGuideEnabled) {
+                                speak('สร้างค่าห้องแล้ว ' + response.createdCount + ' ห้อง');
+                            }
+                            
+                            // รีเฟรชข้อมูล
+                            loadMissionData();
+                            updateStatistics();
+                        } else {
+                            Swal.fire('เกิดข้อผิดพลาด!', response.message, 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.close();
+                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถสร้างค่าห้องได้', 'error');
+                    }
+                });
+            }
+            
+            // ฟังก์ชันเก็บเงินทุกห้อง
+            function markAllRoomsAsPaid() {
+                const unpaidRooms = missionData.filter(room => !room.isFullyPaid);
+                let completedCount = 0;
+                
+                Swal.fire({
+                    title: 'กำลังเก็บเงินทุกห้อง...',
+                    html: '<div class="progress-mission"><div class="progress-bar" style="width: 0%">0/' + unpaidRooms.length + '</div></div>',
+                    allowOutsideClick: false,
+                    showConfirmButton: false
+                });
+                
+                // ดำเนินการทีละห้อง
+                const processRooms = async () => {
+                    for (let room of unpaidRooms) {
+                        try {
+                            const response = await $.post('/Finance/MarkRoomAsPaid', { roomId: room.roomId });
+                            if (response.success) {
+                                completedCount++;
+                                const progress = Math.round((completedCount / unpaidRooms.length) * 100);
+                                $('.progress-bar').css('width', progress + '%').text(completedCount + '/' + unpaidRooms.length);
+                                
+                                // หน่วงเวลาเล็กน้อยเพื่อให้เห็น Progress
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                            }
+                        } catch (error) {
+                            console.error('Error marking room as paid:', error);
+                        }
+                    }
+                    
+                    Swal.close();
+                    Swal.fire({
+                        title: 'เสร็จสิ้น!',
+                        html: 'เก็บเงินเรียบร้อยแล้ว<br><strong>' + completedCount + '/' + unpaidRooms.length + ' ห้อง</strong>',
+                        icon: 'success'
+                    });
+                    
+                    if (voiceGuideEnabled) {
+                        speak('เก็บเงินเรียบร้อยแล้ว ' + completedCount + ' ห้อง');
+                    }
+                    
+                    // รีเฟรชข้อมูล
+                    loadMissionData();
+                    updateStatistics();
+                };
+                
+                processRooms();
+            }
+            
+            // ฟังก์ชันพิมพ์รายการ
+            function printMissionList() {
+                const unpaidRooms = missionData.filter(room => !room.isFullyPaid);
+                
+                if (unpaidRooms.length === 0) {
+                    Swal.fire({
+                        title: 'ไม่มีรายการที่ต้องพิมพ์',
+                        text: 'ทุกห้องจ่ายเงินครบแล้ว',
+                        icon: 'info'
+                    });
+                    return;
+                }
+                
+                const printContent = generatePrintContent(unpaidRooms);
+                
+                // เปิดหน้าต่างใหม่สำหรับพิมพ์
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(printContent);
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+                
+                if (voiceGuideEnabled) {
+                    speak('เปิดหน้าต่างพิมพ์แล้ว');
+                }
+            }
+            
+            // ฟังก์ชันสร้างเนื้อหาสำหรับพิมพ์
+            function generatePrintContent(unpaidRooms) {
+                const currentDate = moment().format('DD/MM/YYYY HH:mm');
+                const totalAmount = unpaidRooms.reduce((sum, room) => sum + (room.totalAmount - room.paidAmount), 0);
+                
+                let content = '<!DOCTYPE html>' +
+                '<html>' +
+                '<head>' +
+                    '<meta charset="utf-8">' +
+                    '<title>รายการเก็บเงินประจำเดือน</title>' +
+                    '<style>' +
+                        'body { ' +
+                            'font-family: "Sarabun", sans-serif; ' +
+                            'font-size: 14pt; ' +
+                            'margin: 20px;' +
+                            'line-height: 1.4;' +
+                        '}' +
+                        '.header { ' +
+                            'text-align: center; ' +
+                            'margin-bottom: 30px; ' +
+                            'border-bottom: 2px solid #333;' +
+                            'padding-bottom: 10px;' +
+                        '}' +
+                        '.header h1 { ' +
+                            'margin: 0; ' +
+                            'font-size: 24pt; ' +
+                            'color: #333;' +
+                        '}' +
+                        '.header .date { ' +
+                            'font-size: 12pt; ' +
+                            'color: #666; ' +
+                            'margin-top: 5px;' +
+                        '}' +
+                        'table { ' +
+                            'width: 100%; ' +
+                            'border-collapse: collapse; ' +
+                            'margin-bottom: 20px;' +
+                        '}' +
+                        'th, td { ' +
+                            'border: 1px solid #333; ' +
+                            'padding: 8px; ' +
+                            'text-align: center;' +
+                        '}' +
+                        'th { ' +
+                            'background-color: #f0f0f0; ' +
+                            'font-weight: bold;' +
+                        '}' +
+                        '.room-col { width: 10%; }' +
+                        '.tenant-col { width: 20%; text-align: left; }' +
+                        '.amount-col { width: 15%; }' +
+                        '.total-col { width: 15%; font-weight: bold; }' +
+                        '.status-col { width: 15%; }' +
+                        '.signature-col { width: 10%; }' +
+                        '.summary { ' +
+                            'margin-top: 30px; ' +
+                            'border: 2px solid #333; ' +
+                            'padding: 15px;' +
+                            'background-color: #f9f9f9;' +
+                        '}' +
+                        '.summary h3 { ' +
+                            'margin-top: 0; ' +
+                            'color: #333;' +
+                        '}' +
+                        '.footer { ' +
+                            'margin-top: 50px; ' +
+                            'text-align: right;' +
+                        '}' +
+                        '.signature-line { ' +
+                            'border-bottom: 1px solid #333; ' +
+                            'width: 200px; ' +
+                            'margin: 20px 0 5px 0;' +
+                        '}' +
+                        '@@media print {' +
+                            'body { margin: 0; }' +
+                            '.no-print { display: none; }' +
+                        '}' +
+                    '</style>' +
+                '</head>' +
+                '<body>' +
+                    '<div class="header">' +
+                        '<h1>📋 รายการเก็บเงินประจำเดือน</h1>' +
+                        '<div class="date">วันที่พิมพ์: ' + currentDate + '</div>' +
+                        '<div class="date">เดือน: ' + moment().format('MMMM YYYY') + '</div>' +
+                    '</div>' +
+                    
+                    '<table>' +
+                        '<thead>' +
+                            '<tr>' +
+                                '<th class="room-col">ห้อง</th>' +
+                                '<th class="tenant-col">ผู้เช่า</th>' +
+                                '<th class="amount-col">ค่าห้อง</th>' +
+                                '<th class="amount-col">ค่าน้ำ</th>' +
+                                '<th class="amount-col">ค่าไฟ</th>' +
+                                '<th class="total-col">รวม</th>' +
+                                '<th class="status-col">สถานะ</th>' +
+                                '<th class="signature-col">ลายเซ็น</th>' +
+                            '</tr>' +
+                        '</thead>' +
+                        '<tbody>';
+                
+                unpaidRooms.forEach((room, index) => {
+                    const pendingAmount = room.totalAmount - room.paidAmount;
+                    const statusText = room.isPartiallyPaid ? 'จ่ายบางส่วน' : 'ยังไม่จ่าย';
+                    
+                    content += '<tr>' +
+                        '<td><strong>' + room.roomName + '</strong></td>' +
+                        '<td style="text-align: left;">' + (room.tenantName || '-') + '</td>' +
+                        '<td>฿' + room.roomCharge.amount.toLocaleString() + '</td>' +
+                        '<td>฿' + room.waterBill.amount.toLocaleString() + '</td>' +
+                        '<td>฿' + room.electricBill.amount.toLocaleString() + '</td>' +
+                        '<td><strong>฿' + pendingAmount.toLocaleString() + '</strong></td>' +
+                        '<td>' + statusText + '</td>' +
+                        '<td></td>' +
+                    '</tr>';
+                });
+                
+                content += '</tbody>' +
+                    '</table>' +
+                    
+                    '<div class="summary">' +
+                        '<h3>📊 สรุปรายการ</h3>' +
+                        '<div><strong>จำนวนห้องที่ต้องเก็บเงิน:</strong> ' + unpaidRooms.length + ' ห้อง</div>' +
+                        '<div><strong>ยอดรวมที่ต้องเก็บ:</strong> ฿' + totalAmount.toLocaleString() + '</div>' +
+                        '<div style="margin-top: 10px;">' +
+                            '<strong>หมายเหตุ:</strong> โปรดตรวจสอบยอดเงินให้ถูกต้องก่อนการเก็บเงิน' +
+                        '</div>' +
+                    '</div>' +
+                    
+                    '<div class="footer">' +
+                        '<div>ผู้จัดทำรายการ</div>' +
+                        '<div class="signature-line"></div>' +
+                        '<div>( ลายเซ็น )</div>' +
+                        '<div style="margin-top: 10px; font-size: 10pt; color: #666;">' +
+                            'พิมพ์จากระบบจัดการห้องเช่า - ' + currentDate +
+                        '</div>' +
+                    '</div>' +
+                '</body>' +
+                '</html>';
+                
+                return content;
+            }
+            
+            // ฟังก์ชันอัพเดทปุ่ม Voice Guide
+            function updateVoiceGuideButton() {
+                const btn = $('#voiceGuideBtn');
+                if (voiceGuideEnabled) {
+                    btn.removeClass('btn-primary').addClass('btn-success voice-active');
+                    btn.find('div').text('คำแนะนำเสียง เปิด');
+                } else {
+                    btn.removeClass('btn-success voice-active').addClass('btn-primary');
+                    btn.find('div').text('คำแนะนำเสียง ปิด');
+                }
+            }
+            
+            // ฟังก์ชันพูด (Text-to-Speech)
+            function speak(text) {
+                if (!voiceGuideEnabled || !('speechSynthesis' in window)) return;
+                
+                // หยุดการพูดก่อนหน้า
+                speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'th-TH';
+                utterance.rate = 0.8;
+                utterance.pitch = 1.0;
+                utterance.volume = 0.8;
+                
+                speechSynthesis.speak(utterance);
+            }
+            
+            // เพิ่มคำแนะนำเสียงเมื่อมีการโต้ตอบ
+            $(document).on('click', '.btn', function() {
+                if (!voiceGuideEnabled) return;
+                
+                const buttonText = $(this).text().trim();
+                if (buttonText && buttonText.length < 50) {
+                    speak(buttonText);
+                }
+            });
+            
+            // แสดงข้อความแนะนำเมื่อโหลดหน้า
+            if (voiceGuideEnabled && window.location.hash !== '#silent') {
+                setTimeout(() => {
+                    speak('ยินดีต้อนรับสู่หน้าจัดการค่าใช้จ่าย');
+                }, 1000);
+            }
 
-            // ตั้งค่าเริ่มต้นสำหรับวันที่
-            const today = moment().format('YYYY-MM-DD');
-            const currentMonth = moment().format('YYYY-MM');
-            const nextWeek = moment().add(7, 'days').format('YYYY-MM-DD');
+            // ฟังก์ชันเพิ่มเติมสำหรับการใช้งาน
+            function enableLargeTextMode() {
+                $('body').addClass('large-text');
+                localStorage.setItem('largeText', 'true');
+            }
 
-            $('#meter_date, #electric_meter_date').val(today);
-            $('#charge_month').val(currentMonth);
-            $('#due_date').val(nextWeek);
+            function disableLargeTextMode() {
+                $('body').removeClass('large-text');
+                localStorage.setItem('largeText', 'false');
+            }
+
+            // โหลดการตั้งค่าตัวอักษรใหญ่
+            if (localStorage.getItem('largeText') === 'true') {
+                enableLargeTextMode();
+            }
+
+            // Keyboard shortcuts สำหรับผู้สูงอายุ
+            $(document).on('keydown', function(e) {
+                // Ctrl + P = พิมพ์
+                if (e.ctrlKey && e.key === 'p') {
+                    e.preventDefault();
+                    $('#printMissionBtn').click();
+                }
+                
+                // F1 = คำแนะนำ
+                if (e.key === 'F1') {
+                    e.preventDefault();
+                    $('#voiceGuideBtn').click();
+                }
+                
+                // F5 = รีเฟรชข้อมูล
+                if (e.key === 'F5') {
+                    e.preventDefault();
+                    $('#refreshDataBtn').click();
+                }
+            });
+
+            // อัพเดทฟังก์ชัน loadMissionData เพื่อเก็บข้อมูลในตัวแปร missionData
+            function loadMissionData() {
+                $.get('/Finance/GetMissionData', function(response) {
+                    if (response.success) {
+                        missionData = response.rooms; // เก็บข้อมูลในตัวแปร global
+                        
+                        const hideCompleted = $('#hideCompletedRooms').is(':checked');
+                        let filteredRooms = missionData;
+                        
+                        if (hideCompleted) {
+                            filteredRooms = missionData.filter(room => !room.isFullyPaid);
+                        }
+                        
+                        let tableBody = '';
+                        filteredRooms.forEach(room => {
+                            const pendingAmount = room.totalAmount - room.paidAmount;
+                            const statusClass = room.isFullyPaid ? 'status-paid' : 
+                                              room.isPartiallyPaid ? 'status-partial' : 'status-unpaid';
+                            const statusText = room.isFullyPaid ? 'จ่ายครบแล้ว' : 
+                                             room.isPartiallyPaid ? 'จ่ายบางส่วน' : 'ยังไม่จ่าย';
+                            const rowClass = room.isFullyPaid ? 'row-paid' : 
+                                           room.isPartiallyPaid ? 'row-partial' : 'row-unpaid';
+                            
+                            tableBody += '<tr class="' + rowClass + '">' +
+                                '<td class="text-center">' +
+                                    '<span class="room-number">' + room.roomName + '</span>' +
+                                '</td>' +
+                                '<td>' + room.tenantName + '</td>' +
+                                '<td class="text-center">' +
+                                    '<span class="amount-display ' + (room.roomCharge.isPaid ? 'amount-paid' : 'amount-unpaid') + '">' +
+                                        '฿' + room.roomCharge.amount.toLocaleString() +
+                                    '</span>' +
+                                '</td>' +
+                                '<td class="text-center">' +
+                                    '<span class="amount-display ' + (room.waterBill.isPaid ? 'amount-paid' : 'amount-unpaid') + '">' +
+                                        '฿' + room.waterBill.amount.toLocaleString() +
+                                    '</span>' +
+                                '</td>' +
+                                '<td class="text-center">' +
+                                    '<span class="amount-display ' + (room.electricBill.isPaid ? 'amount-paid' : 'amount-unpaid') + '">' +
+                                        '฿' + room.electricBill.amount.toLocaleString() +
+                                    '</span>' +
+                                '</td>' +
+                                '<td class="text-center">' +
+                                    '<span class="amount-display amount-total">฿' + room.totalAmount.toLocaleString() + '</span>' +
+                                '</td>' +
+                                '<td class="text-center">' +
+                                    '<span class="status-badge ' + statusClass + '">' + statusText + '</span>' +
+                                '</td>' +
+                                '<td class="text-center">' +
+                                    '<div class="btn-group" role="group">' +
+                                        '<button class="btn btn-sm btn-info btn-action" onclick="showRoomDetail(' + room.roomId + ')" title="ดูรายละเอียด">' +
+                                            '<i class="bi bi-eye"></i>' +
+                                        '</button>';
+                            
+                            if (!room.isFullyPaid) {
+                                tableBody += '<button class="btn btn-sm btn-success btn-action" onclick="markRoomAsPaid(' + room.roomId + ')" title="เก็บเงินครบห้อง">' +
+                                    '<i class="bi bi-check-circle"></i>' +
+                                '</button>';
+                            }
+                            
+                            tableBody += '</div>' +
+                                '</td>' +
+                            '</tr>';
+                        });
+                        
+                        $('#missionTableBody').html(tableBody);
+                        $('#missionBadge').text(filteredRooms.filter(room => !room.isFullyPaid).length);
+                    }
+                });
+            }
+            
+            // ฟังก์ชันสำหรับแสดงรายละเอียดห้อง
+            function showRoomDetail(roomId) {
+                const room = missionData.find(r => r.roomId === roomId);
+                if (!room) return;
+                
+                const content = '<div class="row">' +
+                    '<div class="col-md-6">' +
+                        '<h6>ข้อมูลห้อง</h6>' +
+                        '<p><strong>ห้อง:</strong> ' + room.roomName + '</p>' +
+                        '<p><strong>ผู้เช่า:</strong> ' + room.tenantName + '</p>' +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                        '<h6>สรุปค่าใช้จ่าย</h6>' +
+                        '<p><strong>รวมทั้งหมด:</strong> ฿' + room.totalAmount.toLocaleString() + '</p>' +
+                        '<p><strong>จ่ายแล้ว:</strong> ฿' + room.paidAmount.toLocaleString() + '</p>' +
+                        '<p><strong>ค้างชำระ:</strong> ฿' + (room.totalAmount - room.paidAmount).toLocaleString() + '</p>' +
+                    '</div>' +
+                '</div>' +
+                '<hr>' +
+                '<div class="row">' +
+                    '<div class="col-md-4">' +
+                        '<h6>ค่าห้อง</h6>' +
+                        '<p>฿' + room.roomCharge.amount.toLocaleString() + '</p>' +
+                        '<span class="badge ' + (room.roomCharge.isPaid ? 'bg-success' : 'bg-warning') + '">' +
+                            (room.roomCharge.isPaid ? 'จ่ายแล้ว' : 'ยังไม่จ่าย') +
+                        '</span>' +
+                    '</div>' +
+                    '<div class="col-md-4">' +
+                        '<h6>ค่าน้ำ</h6>' +
+                        '<p>฿' + room.waterBill.amount.toLocaleString() + ' (' + room.waterBill.units + ' หน่วย)</p>' +
+                        '<span class="badge ' + (room.waterBill.isPaid ? 'bg-success' : 'bg-warning') + '">' +
+                            (room.waterBill.isPaid ? 'จ่ายแล้ว' : 'ยังไม่จ่าย') +
+                        '</span>' +
+                    '</div>' +
+                    '<div class="col-md-4">' +
+                        '<h6>ค่าไฟ</h6>' +
+                        '<p>฿' + room.electricBill.amount.toLocaleString() + ' (' + room.electricBill.units + ' หน่วย)</p>' +
+                        '<span class="badge ' + (room.electricBill.isPaid ? 'bg-success' : 'bg-warning') + '">' +
+                            (room.electricBill.isPaid ? 'จ่ายแล้ว' : 'ยังไม่จ่าย') +
+                        '</span>' +
+                    '</div>' +
+                '</div>';
+                
+                $('#roomDetailContent').html(content);
+                $('#roomDetailModal').modal('show');
+            }
+            
+            // ฟังก์ชันสำหรับเก็บเงินครบห้อง
+            function markRoomAsPaid(roomId) {
+                Swal.fire({
+                    title: 'ยืนยันการเก็บเงิน',
+                    text: 'คุณต้องการทำเครื่องหมายว่าเก็บเงินครบห้องนี้แล้วใช่หรือไม่?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'ใช่, เก็บแล้ว',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.post('/Finance/MarkRoomAsPaid', { roomId: roomId }, function(response) {
+                            if (response.success) {
+                                loadMissionData();
+                                updateStatistics();
+                                Swal.fire({
+                                    title: 'สำเร็จ!',
+                                    text: 'บันทึกการเก็บเงินเรียบร้อยแล้ว',
+                                    icon: 'success',
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 3000
+                                });
+                            } else {
+                                Swal.fire('เกิดข้อผิดพลาด!', response.message, 'error');
+                            }
+                        }).fail(function() {
+                            Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+                        });
+                    }
+                });
+            }
+
+            // ฟังก์ชันอัพเดทสถิติ
+            function updateStatistics() {
+                $.get('/Finance/GetStatistics', function(data) {
+                    $('#totalIncome').text('฿' + data.totalIncome.toLocaleString());
+                    $('#totalCollected').text('฿' + data.totalCollected.toLocaleString());
+                    $('#totalPending').text('฿' + data.totalPending.toLocaleString());
+                    $('#pendingRoomsCount').text(data.pendingRooms);
+                }).fail(function() {
+                    console.error('Error loading statistics');
+                });
+            }
         });
-
-        // ฟังก์ชันสำหรับค่าน้ำ (Global functions)
-        function editWaterMeter(id) {
-            // Implementation for editing water meter
-            console.log("Edit water meter:", id);
-        }
-
-        function markWaterAsPaid(id) {
-            // Implementation for marking water as paid
-            console.log("Mark water as paid:", id);
-        }
-
-        function deleteWaterMeter(id) {
-            // Implementation for deleting water meter
-            console.log("Delete water meter:", id);
-        }
-
-        // ฟังก์ชันสำหรับค่าไฟ (Global functions)
-        function editElectricMeter(id) {
-            // Implementation for editing electric meter
-            console.log("Edit electric meter:", id);
-        }
-
-        function markElectricAsPaid(id) {
-            // Implementation for marking electric as paid
-            console.log("Mark electric as paid:", id);
-        }
-
-        function deleteElectricMeter(id) {
-            // Implementation for deleting electric meter
-            console.log("Delete electric meter:", id);
-        }
-
-        // ฟังก์ชันสำหรับค่าห้อง (Global functions)
-        function editRoomCharge(id) {
-            // Implementation for editing room charge
-            console.log("Edit room charge:", id);
-        }
-
-        function markRoomChargeAsPaid(id) {
-            // Implementation for marking room charge as paid
-            console.log("Mark room charge as paid:", id);
-        }
-
-        function deleteRoomCharge(id) {
-            // Implementation for deleting room charge
-            console.log("Delete room charge:", id);
-        }
     </script>
 }
