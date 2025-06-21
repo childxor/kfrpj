@@ -1,6 +1,11 @@
+using System;
+using System.Globalization;
+using System.Text;
 using kfrpj.Data;
 using kfrpj.Models.finance;
+using kfrpj.Models.rooms;
 using kfrpj.Models.settings;
+using kfrpj.Models.tenants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,10 +23,22 @@ namespace kfrpj.Controllers
             _logger = logger;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
             try
             {
+                // โหลดรายการห้องสำหรับ dropdown
+                ViewBag.Rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
+                    .OrderBy(r => r.room_name)
+                    .Select(r => new
+                    {
+                        r.room_id,
+                        r.room_name,
+                        r.room_price,
+                    })
+                    .ToListAsync();
+
                 return View();
             }
             catch (Exception ex)
@@ -32,7 +49,7 @@ namespace kfrpj.Controllers
             }
         }
 
-        // ดึงข้อมูลสถิติสำหรับแดชบอร์ด
+        // ====== ข้อมูลสถิติและแดชบอร์ด ======
         [HttpGet]
         public async Task<IActionResult> GetStatistics()
         {
@@ -41,83 +58,64 @@ namespace kfrpj.Controllers
                 var currentMonth = DateTime.Now.Month;
                 var currentYear = DateTime.Now.Year;
 
-                // คำนวณค่าน้ำรวม
-                var totalWaterBill = await _context
-                    .water_meters_list.Where(w =>
-                        w.meter_date.Month == currentMonth
-                        && w.meter_date.Year == currentYear
-                        && w.record_status == "N"
-                    )
-                    .SumAsync(w => w.water_bill);
-
-                // คำนวณค่าไฟรวม
-                var totalElectricBill = await _context
-                    .electric_meters_list.Where(e =>
-                        e.meter_date.Month == currentMonth
-                        && e.meter_date.Year == currentYear
-                        && e.record_status == "N"
-                    )
-                    .SumAsync(e => e.electric_bill);
-
-                // คำนวณค่าห้องรวม
-                var totalRoomCharges = await _context
-                    .room_charges_list.Where(r =>
-                        r.charge_month.Month == currentMonth
-                        && r.charge_month.Year == currentYear
-                        && r.record_status == "N"
-                    )
-                    .SumAsync(r => r.room_price);
-
-                var totalIncome = totalWaterBill + totalElectricBill + totalRoomCharges;
+                // คำนวณรายได้รวมเดือนนี้
+                var monthlyIncome = await CalculateMonthlyIncome(currentMonth, currentYear);
 
                 // คำนวณยอดเก็บแล้ว
-                var collectedWater = await _context
-                    .water_meters_list.Where(w =>
-                        w.meter_date.Month == currentMonth
-                        && w.meter_date.Year == currentYear
-                        && w.is_paid
-                        && w.record_status == "N"
-                    )
-                    .SumAsync(w => w.water_bill);
+                var collectedAmount = await CalculateCollectedAmount(currentMonth, currentYear);
 
-                var collectedElectric = await _context
-                    .electric_meters_list.Where(e =>
-                        e.meter_date.Month == currentMonth
-                        && e.meter_date.Year == currentYear
-                        && e.is_paid
-                        && e.record_status == "N"
-                    )
-                    .SumAsync(e => e.electric_bill);
-
-                var collectedRoom = await _context
-                    .room_charges_list.Where(r =>
-                        r.charge_month.Month == currentMonth
-                        && r.charge_month.Year == currentYear
-                        && r.is_paid
-                        && r.record_status == "N"
-                    )
-                    .SumAsync(r => r.room_price);
-
-                var totalCollected = collectedWater + collectedElectric + collectedRoom;
-                var totalPending = totalIncome - totalCollected;
+                // คำนวณยอดค้างชำระ
+                var pendingAmount = monthlyIncome.total - collectedAmount.total;
 
                 // นับจำนวนห้องที่ต้องเก็บเงิน
-                var pendingRooms = await _context
-                    .room_charges_list.Where(r =>
-                        r.charge_month.Month == currentMonth
-                        && r.charge_month.Year == currentYear
-                        && !r.is_paid
-                        && r.record_status == "N"
-                    )
-                    .CountAsync();
+                var pendingRoomsCount = await GetPendingRoomsCount(currentMonth, currentYear);
+
+                // ข้อมูลเพิ่มเติม
+                var previousMonth = DateTime.Now.AddMonths(-1);
+                var previousMonthIncome = await CalculateMonthlyIncome(
+                    previousMonth.Month,
+                    previousMonth.Year
+                );
+                var growthRate = CalculateGrowthRate(
+                    monthlyIncome.total,
+                    previousMonthIncome.total
+                );
 
                 return Json(
                     new
                     {
-                        totalIncome = totalIncome,
-                        totalCollected = totalCollected,
-                        totalPending = totalPending,
-                        pendingRooms = pendingRooms,
+                        totalIncome = monthlyIncome.total,
+                        totalCollected = collectedAmount.total,
+                        totalPending = pendingAmount,
+                        pendingRooms = pendingRoomsCount,
+                        breakdown = new
+                        {
+                            roomCharges = new
+                            {
+                                income = monthlyIncome.roomCharges,
+                                collected = collectedAmount.roomCharges,
+                            },
+                            waterBills = new
+                            {
+                                income = monthlyIncome.waterBills,
+                                collected = collectedAmount.waterBills,
+                            },
+                            electricBills = new
+                            {
+                                income = monthlyIncome.electricBills,
+                                collected = collectedAmount.electricBills,
+                            },
+                        },
+                        analytics = new
+                        {
+                            collectionRate = monthlyIncome.total > 0
+                                ? Math.Round((collectedAmount.total / monthlyIncome.total) * 100, 1)
+                                : 0,
+                            growthRate = growthRate,
+                            averagePerRoom = pendingRoomsCount > 0
+                                ? Math.Round(monthlyIncome.total / pendingRoomsCount, 0)
+                                : 0,
+                        },
                     }
                 );
             }
@@ -136,7 +134,73 @@ namespace kfrpj.Controllers
             }
         }
 
-        // ====== WATER METERS ======
+        // ====== ข้อมูล Mission ======
+        [HttpGet]
+        public async Task<IActionResult> GetMissionData()
+        {
+            try
+            {
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+
+                _logger.LogInformation($"เริ่มดึงข้อมูล Mission สำหรับเดือน {currentMonth}/{currentYear}");
+
+                var rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
+                    .AsNoTracking()
+                    .OrderBy(r => r.room_name)
+                    .ToListAsync();
+
+                _logger.LogInformation($"พบห้องทั้งหมด {rooms.Count} ห้อง");
+
+                var missionData = new List<object>();
+
+                foreach (var room in rooms.Take(100)) // จำกัดไว้ 100 ห้องแรกเพื่อทดสอบ
+                {
+                    try
+                    {
+                        var roomData = await BuildRoomMissionData(room, currentMonth, currentYear);
+                        missionData.Add(roomData);
+                    }
+                    catch (Exception roomEx)
+                    {
+                        _logger.LogError(roomEx, $"เกิดข้อผิดพลาดในการดึงข้อมูลห้อง {room.room_name}");
+                        // เพิ่มข้อมูลพื้นฐานแทน
+                        missionData.Add(new
+                        {
+                            roomId = room.room_id,
+                            roomName = room.room_name,
+                            tenantName = "ไม่ระบุ",
+                            roomCharge = new { amount = room.room_price, isPaid = false, id = (int?)null, dueDate = (DateTime?)null, daysOverdue = 0 },
+                            waterBill = new { amount = 0m, isPaid = false, id = (int?)null, units = 0, meterDate = (DateTime?)null },
+                            electricBill = new { amount = 0m, isPaid = false, id = (int?)null, units = 0, meterDate = (DateTime?)null },
+                            totalAmount = room.room_price,
+                            paidAmount = 0m,
+                            pendingAmount = room.room_price,
+                            isFullyPaid = false,
+                            isPartiallyPaid = false,
+                            paymentProgress = 0,
+                            priority = 2,
+                            lastUpdateDate = DateTime.MinValue
+                        });
+                    }
+                }
+
+                // เรียงลำดับตามสถานะ (ยังไม่จ่าย -> จ่ายบางส่วน -> จ่ายครบ)
+                var sortedData = missionData.OrderBy(r => GetPriorityScore(r)).ToList();
+
+                _logger.LogInformation($"ส่งข้อมูล Mission สำเร็จ จำนวน {sortedData.Count} ห้อง");
+
+                return Json(new { success = true, rooms = sortedData });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูล Mission");
+                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลได้: " + ex.Message });
+            }
+        }
+
+        // ====== การจัดการค่าน้ำ ======
         [HttpGet]
         public async Task<IActionResult> GetWaterMeters()
         {
@@ -149,14 +213,14 @@ namespace kfrpj.Controllers
                     .Select(w => new
                     {
                         water_meter_id = w.water_meter_id,
+                        room_id = w.room_id,
                         room_name = w.Room.room_name,
-                        old_meter = w.old_meter,
-                        new_meter = w.new_meter,
                         water_units = w.water_units,
                         water_bill = w.water_bill,
                         is_paid = w.is_paid,
                         meter_date = w.meter_date.ToString("yyyy-MM-dd"),
                         notes = w.notes,
+                        created_at = w.created_at.ToString("dd/MM/yyyy HH:mm"),
                     })
                     .ToListAsync();
 
@@ -170,23 +234,35 @@ namespace kfrpj.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateWaterMeter([FromForm] water_meters_list waterMeter)
+        public async Task<IActionResult> CreateWaterBill([FromForm] water_meters_list waterBill)
         {
             try
             {
-                // ดึงค่าตั้งค่าค่าน้ำ
+                // ตรวจสอบข้อมูลก่อนบันทึก
+                var validation = await ValidateWaterBill(waterBill);
+                if (!validation.isValid)
+                {
+                    return Json(new { success = false, message = validation.message });
+                }
+
                 var waterRate = await GetWaterRate();
 
-                waterMeter.water_units = waterMeter.new_meter - waterMeter.old_meter;
-                waterMeter.water_bill = waterMeter.water_units * waterRate;
-                waterMeter.created_at = DateTime.Now;
-                waterMeter.created_by = HttpContext.Session.GetString("Username") ?? "System";
-                waterMeter.record_status = "N";
+                // คำนวณค่าน้ำตามจำนวนคน
+                waterBill.water_bill = waterBill.water_units * waterRate;
+                waterBill.meter_date = DateTime.Now;
+                waterBill.created_at = DateTime.Now;
+                waterBill.created_by = HttpContext.Session.GetString("Username") ?? "System";
+                waterBill.record_status = "N";
 
-                _context.water_meters_list.Add(waterMeter);
+                _context.water_meters_list.Add(waterBill);
                 await _context.SaveChangesAsync();
 
-                return Json(new { success = true });
+                // Log การทำงาน
+                _logger.LogInformation(
+                    $"สร้างข้อมูลค่าน้ำใหม่ ห้อง: {waterBill.room_id}, จำนวนคน: {waterBill.water_units}"
+                );
+
+                return Json(new { success = true, message = "บันทึกข้อมูลค่าน้ำเรียบร้อยแล้ว" });
             }
             catch (Exception ex)
             {
@@ -195,105 +271,7 @@ namespace kfrpj.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetWaterMeter(int id)
-        {
-            try
-            {
-                var waterMeter = await _context.water_meters_list.FindAsync(id);
-                if (waterMeter == null)
-                    return NotFound();
-
-                return Json(waterMeter);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลค่าน้ำ ID: {id}");
-                return NotFound();
-            }
-        }
-
-        [HttpPut]
-        public async Task<IActionResult> EditWaterMeter(
-            int id,
-            [FromForm] water_meters_list waterMeter
-        )
-        {
-            try
-            {
-                var existingMeter = await _context.water_meters_list.FindAsync(id);
-                if (existingMeter == null)
-                    return NotFound();
-
-                var waterRate = await GetWaterRate();
-
-                existingMeter.room_id = waterMeter.room_id;
-                existingMeter.meter_date = waterMeter.meter_date;
-                existingMeter.old_meter = waterMeter.old_meter;
-                existingMeter.new_meter = waterMeter.new_meter;
-                existingMeter.water_units = waterMeter.new_meter - waterMeter.old_meter;
-                existingMeter.water_bill = existingMeter.water_units * waterRate;
-                existingMeter.notes = waterMeter.notes;
-                existingMeter.updated_at = DateTime.Now;
-                existingMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลค่าน้ำ ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถแก้ไขข้อมูลได้" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> MarkWaterAsPaid(int id)
-        {
-            try
-            {
-                var waterMeter = await _context.water_meters_list.FindAsync(id);
-                if (waterMeter == null)
-                    return NotFound();
-
-                waterMeter.is_paid = true;
-                waterMeter.updated_at = DateTime.Now;
-                waterMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการอัปเดตสถานะค่าน้ำ ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถอัปเดตสถานะได้" });
-            }
-        }
-
-        [HttpDelete]
-        public async Task<IActionResult> DeleteWaterMeter(int id)
-        {
-            try
-            {
-                var waterMeter = await _context.water_meters_list.FindAsync(id);
-                if (waterMeter == null)
-                    return NotFound();
-
-                waterMeter.record_status = "D";
-                waterMeter.updated_at = DateTime.Now;
-                waterMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบข้อมูลค่าน้ำ ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถลบข้อมูลได้" });
-            }
-        }
-
-        // ====== ELECTRIC METERS ======
+        // ====== การจัดการค่าไฟ ======
         [HttpGet]
         public async Task<IActionResult> GetElectricMeters()
         {
@@ -306,6 +284,7 @@ namespace kfrpj.Controllers
                     .Select(e => new
                     {
                         electric_meter_id = e.electric_meter_id,
+                        room_id = e.room_id,
                         room_name = e.Room.room_name,
                         old_meter = e.old_meter,
                         new_meter = e.new_meter,
@@ -314,6 +293,7 @@ namespace kfrpj.Controllers
                         is_paid = e.is_paid,
                         meter_date = e.meter_date.ToString("yyyy-MM-dd"),
                         notes = e.notes,
+                        created_at = e.created_at.ToString("dd/MM/yyyy HH:mm"),
                     })
                     .ToListAsync();
 
@@ -333,6 +313,13 @@ namespace kfrpj.Controllers
         {
             try
             {
+                // ตรวจสอบข้อมูลก่อนบันทึก
+                var validation = await ValidateElectricMeter(electricMeter);
+                if (!validation.isValid)
+                {
+                    return Json(new { success = false, message = validation.message });
+                }
+
                 var electricRate = await GetElectricRate();
 
                 electricMeter.electric_units = electricMeter.new_meter - electricMeter.old_meter;
@@ -344,7 +331,11 @@ namespace kfrpj.Controllers
                 _context.electric_meters_list.Add(electricMeter);
                 await _context.SaveChangesAsync();
 
-                return Json(new { success = true });
+                _logger.LogInformation(
+                    $"สร้างข้อมูลค่าไฟใหม่ ห้อง: {electricMeter.room_id}, จำนวนหน่วย: {electricMeter.electric_units}"
+                );
+
+                return Json(new { success = true, message = "บันทึกข้อมูลค่าไฟเรียบร้อยแล้ว" });
             }
             catch (Exception ex)
             {
@@ -353,105 +344,7 @@ namespace kfrpj.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetElectricMeter(int id)
-        {
-            try
-            {
-                var electricMeter = await _context.electric_meters_list.FindAsync(id);
-                if (electricMeter == null)
-                    return NotFound();
-
-                return Json(electricMeter);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลค่าไฟ ID: {id}");
-                return NotFound();
-            }
-        }
-
-        [HttpPut]
-        public async Task<IActionResult> EditElectricMeter(
-            int id,
-            [FromForm] electric_meters_list electricMeter
-        )
-        {
-            try
-            {
-                var existingMeter = await _context.electric_meters_list.FindAsync(id);
-                if (existingMeter == null)
-                    return NotFound();
-
-                var electricRate = await GetElectricRate();
-
-                existingMeter.room_id = electricMeter.room_id;
-                existingMeter.meter_date = electricMeter.meter_date;
-                existingMeter.old_meter = electricMeter.old_meter;
-                existingMeter.new_meter = electricMeter.new_meter;
-                existingMeter.electric_units = electricMeter.new_meter - electricMeter.old_meter;
-                existingMeter.electric_bill = existingMeter.electric_units * electricRate;
-                existingMeter.notes = electricMeter.notes;
-                existingMeter.updated_at = DateTime.Now;
-                existingMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลค่าไฟ ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถแก้ไขข้อมูลได้" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> MarkElectricAsPaid(int id)
-        {
-            try
-            {
-                var electricMeter = await _context.electric_meters_list.FindAsync(id);
-                if (electricMeter == null)
-                    return NotFound();
-
-                electricMeter.is_paid = true;
-                electricMeter.updated_at = DateTime.Now;
-                electricMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการอัปเดตสถานะค่าไฟ ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถอัปเดตสถานะได้" });
-            }
-        }
-
-        [HttpDelete]
-        public async Task<IActionResult> DeleteElectricMeter(int id)
-        {
-            try
-            {
-                var electricMeter = await _context.electric_meters_list.FindAsync(id);
-                if (electricMeter == null)
-                    return NotFound();
-
-                electricMeter.record_status = "D";
-                electricMeter.updated_at = DateTime.Now;
-                electricMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบข้อมูลค่าไฟ ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถลบข้อมูลได้" });
-            }
-        }
-
-        // ====== ROOM CHARGES ======
+        // ====== การจัดการค่าห้อง ======
         [HttpGet]
         public async Task<IActionResult> GetRoomCharges()
         {
@@ -464,8 +357,9 @@ namespace kfrpj.Controllers
                     .Select(r => new
                     {
                         room_charge_id = r.room_charge_id,
+                        room_id = r.room_id,
                         room_name = r.Room.room_name,
-                        tenant_name = "ผู้เช่า", // จะปรับเมื่อมีตาราง tenant-room relationship
+                        tenant_name = GetTenantName(r.room_id), // จะสร้างฟังก์ชันนี้
                         room_price = r.room_price,
                         charge_month = r.charge_month.ToString("yyyy-MM"),
                         is_paid = r.is_paid,
@@ -474,6 +368,10 @@ namespace kfrpj.Controllers
                             ? r.paid_date.Value.ToString("yyyy-MM-dd")
                             : null,
                         notes = r.notes,
+                        created_at = r.created_at.ToString("dd/MM/yyyy HH:mm"),
+                        days_overdue = r.is_paid
+                            ? 0
+                            : Math.Max(0, (DateTime.Now - r.due_date).Days),
                     })
                     .ToListAsync();
 
@@ -491,6 +389,21 @@ namespace kfrpj.Controllers
         {
             try
             {
+                // ตรวจสอบว่ามีค่าห้องสำหรับเดือนนี้แล้วหรือไม่
+                var existingCharge = await _context.room_charges_list.AnyAsync(rc =>
+                    rc.room_id == roomCharge.room_id
+                    && rc.charge_month.Month == roomCharge.charge_month.Month
+                    && rc.charge_month.Year == roomCharge.charge_month.Year
+                    && rc.record_status == "N"
+                );
+
+                if (existingCharge)
+                {
+                    return Json(
+                        new { success = false, message = "มีค่าห้องสำหรับเดือนนี้อยู่แล้ว" }
+                    );
+                }
+
                 roomCharge.created_at = DateTime.Now;
                 roomCharge.created_by = HttpContext.Session.GetString("Username") ?? "System";
                 roomCharge.record_status = "N";
@@ -498,7 +411,11 @@ namespace kfrpj.Controllers
                 _context.room_charges_list.Add(roomCharge);
                 await _context.SaveChangesAsync();
 
-                return Json(new { success = true });
+                _logger.LogInformation(
+                    $"สร้างข้อมูลค่าห้องใหม่ ห้อง: {roomCharge.room_id}, เดือน: {roomCharge.charge_month:MM/yyyy}"
+                );
+
+                return Json(new { success = true, message = "บันทึกข้อมูลค่าห้องเรียบร้อยแล้ว" });
             }
             catch (Exception ex)
             {
@@ -507,262 +424,7 @@ namespace kfrpj.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetRoomCharge(int id)
-        {
-            try
-            {
-                var roomCharge = await _context.room_charges_list.FindAsync(id);
-                if (roomCharge == null)
-                    return NotFound();
-
-                return Json(roomCharge);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงข้อมูลค่าห้อง ID: {id}");
-                return NotFound();
-            }
-        }
-
-        [HttpPut]
-        public async Task<IActionResult> EditRoomCharge(
-            int id,
-            [FromForm] room_charges_list roomCharge
-        )
-        {
-            try
-            {
-                var existingCharge = await _context.room_charges_list.FindAsync(id);
-                if (existingCharge == null)
-                    return NotFound();
-
-                existingCharge.room_id = roomCharge.room_id;
-                existingCharge.charge_month = roomCharge.charge_month;
-                existingCharge.room_price = roomCharge.room_price;
-                existingCharge.due_date = roomCharge.due_date;
-                existingCharge.notes = roomCharge.notes;
-                existingCharge.updated_at = DateTime.Now;
-                existingCharge.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลค่าห้อง ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถแก้ไขข้อมูลได้" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> MarkRoomChargeAsPaid(int id)
-        {
-            try
-            {
-                var roomCharge = await _context.room_charges_list.FindAsync(id);
-                if (roomCharge == null)
-                    return NotFound();
-
-                roomCharge.is_paid = true;
-                roomCharge.paid_date = DateTime.Now;
-                roomCharge.updated_at = DateTime.Now;
-                roomCharge.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการอัปเดตสถานะค่าห้อง ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถอัปเดตสถานะได้" });
-            }
-        }
-
-        [HttpDelete]
-        public async Task<IActionResult> DeleteRoomCharge(int id)
-        {
-            try
-            {
-                var roomCharge = await _context.room_charges_list.FindAsync(id);
-                if (roomCharge == null)
-                    return NotFound();
-
-                roomCharge.record_status = "D";
-                roomCharge.updated_at = DateTime.Now;
-                roomCharge.updated_by = HttpContext.Session.GetString("Username") ?? "System";
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบข้อมูลค่าห้อง ID: {id}");
-                return Json(new { success = false, message = "ไม่สามารถลบข้อมูลได้" });
-            }
-        }
-
-        // ====== HELPER METHODS ======
-        private async Task<decimal> GetWaterRate()
-        {
-            var setting = await _context.settings_list.FirstOrDefaultAsync(s =>
-                s.setting_key == "WATER_RATE_PER_UNIT" && s.record_status == "N"
-            );
-            return decimal.TryParse(setting?.setting_value, out var rate) ? rate : 15.00m;
-        }
-
-        private async Task<decimal> GetElectricRate()
-        {
-            var setting = await _context.settings_list.FirstOrDefaultAsync(s =>
-                s.setting_key == "ELECTRIC_RATE_PER_UNIT" && s.record_status == "N"
-            );
-            return decimal.TryParse(setting?.setting_value, out var rate) ? rate : 5.00m;
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetRates()
-        {
-            try
-            {
-                var waterRate = await GetWaterRate();
-                var electricRate = await GetElectricRate();
-
-                return Json(new { waterRate = waterRate, electricRate = electricRate });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลอัตราค่าใช้จ่าย");
-                return Json(new { waterRate = 15.00m, electricRate = 5.00m });
-            }
-        }
-
-        // 21
-        // เพิ่ม methods เหล่านี้ใน FinanceController.cs
-
-        [HttpGet]
-        public async Task<IActionResult> GetMissionData()
-        {
-            try
-            {
-                var currentMonth = DateTime.Now.Month;
-                var currentYear = DateTime.Now.Year;
-
-                // ดึงข้อมูลห้องทั้งหมด
-                var rooms = await _context
-                    .rooms_list.Where(r => r.record_status == "N")
-                    .OrderBy(r => r.room_name)
-                    .ToListAsync();
-
-                var missionData = new List<object>();
-
-                foreach (var room in rooms)
-                {
-                    // ดึงข้อมูลค่าห้อง
-                    var roomCharge = await _context
-                        .room_charges_list.Where(rc =>
-                            rc.room_id == room.room_id
-                            && rc.charge_month.Month == currentMonth
-                            && rc.charge_month.Year == currentYear
-                            && rc.record_status == "N"
-                        )
-                        .FirstOrDefaultAsync();
-
-                    // ดึงข้อมูลค่าน้ำ
-                    var waterBill = await _context
-                        .water_meters_list.Where(w =>
-                            w.room_id == room.room_id
-                            && w.meter_date.Month == currentMonth
-                            && w.meter_date.Year == currentYear
-                            && w.record_status == "N"
-                        )
-                        .OrderByDescending(w => w.meter_date)
-                        .FirstOrDefaultAsync();
-
-                    // ดึงข้อมูลค่าไฟ
-                    var electricBill = await _context
-                        .electric_meters_list.Where(e =>
-                            e.room_id == room.room_id
-                            && e.meter_date.Month == currentMonth
-                            && e.meter_date.Year == currentYear
-                            && e.record_status == "N"
-                        )
-                        .OrderByDescending(e => e.meter_date)
-                        .FirstOrDefaultAsync();
-
-                    // ดึงข้อมูลผู้เช่า (สำหรับในอนาคต)
-                    var tenantName = "ผู้เช่า"; // จะปรับเมื่อมีตาราง tenant-room relationship
-
-                    // คำนวณยอดเงิน
-                    var roomChargeAmount = roomCharge?.room_price ?? room.room_price;
-                    var waterAmount = waterBill?.water_bill ?? 0;
-                    var electricAmount = electricBill?.electric_bill ?? 0;
-                    var totalAmount = roomChargeAmount + waterAmount + electricAmount;
-
-                    // คำนวณยอดที่จ่ายแล้ว
-                    var roomChargePaid = roomCharge?.is_paid ?? false;
-                    var waterPaid = waterBill?.is_paid ?? false;
-                    var electricPaid = electricBill?.is_paid ?? false;
-
-                    var paidAmount = 0m;
-                    if (roomChargePaid)
-                        paidAmount += roomChargeAmount;
-                    if (waterPaid)
-                        paidAmount += waterAmount;
-                    if (electricPaid)
-                        paidAmount += electricAmount;
-
-                    // สถานะการจ่าย
-                    var isFullyPaid = roomChargePaid && waterPaid && electricPaid;
-                    var isPartiallyPaid =
-                        (roomChargePaid || waterPaid || electricPaid) && !isFullyPaid;
-
-                    missionData.Add(
-                        new
-                        {
-                            roomId = room.room_id,
-                            roomName = room.room_name,
-                            tenantName = tenantName,
-                            roomCharge = new
-                            {
-                                amount = roomChargeAmount,
-                                isPaid = roomChargePaid,
-                                id = roomCharge?.room_charge_id,
-                            },
-                            waterBill = new
-                            {
-                                amount = waterAmount,
-                                isPaid = waterPaid,
-                                id = waterBill?.water_meter_id,
-                                units = waterBill?.water_units ?? 0,
-                            },
-                            electricBill = new
-                            {
-                                amount = electricAmount,
-                                isPaid = electricPaid,
-                                id = electricBill?.electric_meter_id,
-                                units = electricBill?.electric_units ?? 0,
-                            },
-                            totalAmount = totalAmount,
-                            paidAmount = paidAmount,
-                            pendingAmount = totalAmount - paidAmount,
-                            isFullyPaid = isFullyPaid,
-                            isPartiallyPaid = isPartiallyPaid,
-                            paymentProgress = totalAmount > 0
-                                ? (int)((paidAmount / totalAmount) * 100)
-                                : 0,
-                        }
-                    );
-                }
-
-                return Json(new { success = true, rooms = missionData });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูล Mission");
-                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลได้" });
-            }
-        }
-
+        // ====== การเก็บเงิน ======
         [HttpPost]
         public async Task<IActionResult> MarkRoomAsPaid(int roomId)
         {
@@ -771,6 +433,7 @@ namespace kfrpj.Controllers
                 var currentMonth = DateTime.Now.Month;
                 var currentYear = DateTime.Now.Year;
                 var username = HttpContext.Session.GetString("Username") ?? "System";
+                var updateCount = 0;
 
                 // อัพเดทค่าห้อง
                 var roomCharge = await _context
@@ -788,6 +451,7 @@ namespace kfrpj.Controllers
                     roomCharge.paid_date = DateTime.Now;
                     roomCharge.updated_at = DateTime.Now;
                     roomCharge.updated_by = username;
+                    updateCount++;
                 }
 
                 // อัพเดทค่าน้ำ
@@ -806,6 +470,7 @@ namespace kfrpj.Controllers
                     waterBill.is_paid = true;
                     waterBill.updated_at = DateTime.Now;
                     waterBill.updated_by = username;
+                    updateCount++;
                 }
 
                 // อัพเดทค่าไฟ
@@ -824,289 +489,39 @@ namespace kfrpj.Controllers
                     electricBill.is_paid = true;
                     electricBill.updated_at = DateTime.Now;
                     electricBill.updated_by = username;
+                    updateCount++;
                 }
 
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "บันทึกการชำระเงินเรียบร้อยแล้ว" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการบันทึกการชำระเงิน Room ID: {roomId}");
-                return Json(new { success = false, message = "ไม่สามารถบันทึกการชำระเงินได้" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> MarkSpecificBillAsPaid(
-            int roomId,
-            string billType,
-            int? billId = null
-        )
-        {
-            try
-            {
-                var username = HttpContext.Session.GetString("Username") ?? "System";
-                var success = false;
-
-                switch (billType.ToLower())
-                {
-                    case "room":
-                        if (billId.HasValue)
-                        {
-                            var roomCharge = await _context.room_charges_list.FindAsync(
-                                billId.Value
-                            );
-                            if (roomCharge != null && !roomCharge.is_paid)
-                            {
-                                roomCharge.is_paid = true;
-                                roomCharge.paid_date = DateTime.Now;
-                                roomCharge.updated_at = DateTime.Now;
-                                roomCharge.updated_by = username;
-                                success = true;
-                            }
-                        }
-                        break;
-
-                    case "water":
-                        if (billId.HasValue)
-                        {
-                            var waterBill = await _context.water_meters_list.FindAsync(
-                                billId.Value
-                            );
-                            if (waterBill != null && !waterBill.is_paid)
-                            {
-                                waterBill.is_paid = true;
-                                waterBill.updated_at = DateTime.Now;
-                                waterBill.updated_by = username;
-                                success = true;
-                            }
-                        }
-                        break;
-
-                    case "electric":
-                        if (billId.HasValue)
-                        {
-                            var electricBill = await _context.electric_meters_list.FindAsync(
-                                billId.Value
-                            );
-                            if (electricBill != null && !electricBill.is_paid)
-                            {
-                                electricBill.is_paid = true;
-                                electricBill.updated_at = DateTime.Now;
-                                electricBill.updated_by = username;
-                                success = true;
-                            }
-                        }
-                        break;
-                }
-
-                if (success)
+                if (updateCount > 0)
                 {
                     await _context.SaveChangesAsync();
+
+                    var room = await _context.rooms_list.FindAsync(roomId);
+                    _logger.LogInformation(
+                        $"เก็บเงินครบห้อง {room?.room_name} จำนวน {updateCount} รายการ"
+                    );
+
                     return Json(
                         new
                         {
                             success = true,
-                            message = $"บันทึกการชำระ{GetBillTypeName(billType)}เรียบร้อยแล้ว",
+                            message = $"เก็บเงินเรียบร้อยแล้ว จำนวน {updateCount} รายการ",
                         }
                     );
                 }
                 else
                 {
-                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการอัพเดท" });
+                    return Json(new { success = false, message = "ไม่มีรายการที่ต้องเก็บเงิน" });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    $"เกิดข้อผิดพลาดในการบันทึกการชำระเงิน {billType} Room ID: {roomId}"
-                );
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการเก็บเงินห้อง {roomId}");
                 return Json(new { success = false, message = "ไม่สามารถบันทึกการชำระเงินได้" });
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetMissionSummary()
-        {
-            try
-            {
-                var currentMonth = DateTime.Now.Month;
-                var currentYear = DateTime.Now.Year;
-
-                // สถิติโดยรวม
-                var totalRooms = await _context
-                    .rooms_list.Where(r => r.record_status == "N")
-                    .CountAsync();
-
-                // ห้องที่จ่ายครบแล้ว
-                var paidRoomsQuery =
-                    from room in _context.rooms_list
-                    where room.record_status == "N"
-                    let roomCharge = _context
-                        .room_charges_list.Where(rc =>
-                            rc.room_id == room.room_id
-                            && rc.charge_month.Month == currentMonth
-                            && rc.charge_month.Year == currentYear
-                            && rc.record_status == "N"
-                        )
-                        .FirstOrDefault()
-                    let waterBill = _context
-                        .water_meters_list.Where(w =>
-                            w.room_id == room.room_id
-                            && w.meter_date.Month == currentMonth
-                            && w.meter_date.Year == currentYear
-                            && w.record_status == "N"
-                        )
-                        .OrderByDescending(w => w.meter_date)
-                        .FirstOrDefault()
-                    let electricBill = _context
-                        .electric_meters_list.Where(e =>
-                            e.room_id == room.room_id
-                            && e.meter_date.Month == currentMonth
-                            && e.meter_date.Year == currentYear
-                            && e.record_status == "N"
-                        )
-                        .OrderByDescending(e => e.meter_date)
-                        .FirstOrDefault()
-                    where
-                        (roomCharge == null || roomCharge.is_paid)
-                        && (waterBill == null || waterBill.is_paid)
-                        && (electricBill == null || electricBill.is_paid)
-                    select room;
-
-                var fullyPaidRooms = await paidRoomsQuery.CountAsync();
-
-                // ห้องที่จ่ายบางส่วน
-                var partialPaidRoomsQuery =
-                    from room in _context.rooms_list
-                    where room.record_status == "N"
-                    let roomCharge = _context
-                        .room_charges_list.Where(rc =>
-                            rc.room_id == room.room_id
-                            && rc.charge_month.Month == currentMonth
-                            && rc.charge_month.Year == currentYear
-                            && rc.record_status == "N"
-                        )
-                        .FirstOrDefault()
-                    let waterBill = _context
-                        .water_meters_list.Where(w =>
-                            w.room_id == room.room_id
-                            && w.meter_date.Month == currentMonth
-                            && w.meter_date.Year == currentYear
-                            && w.record_status == "N"
-                        )
-                        .OrderByDescending(w => w.meter_date)
-                        .FirstOrDefault()
-                    let electricBill = _context
-                        .electric_meters_list.Where(e =>
-                            e.room_id == room.room_id
-                            && e.meter_date.Month == currentMonth
-                            && e.meter_date.Year == currentYear
-                            && e.record_status == "N"
-                        )
-                        .OrderByDescending(e => e.meter_date)
-                        .FirstOrDefault()
-                    let paidCount = ((roomCharge != null && roomCharge.is_paid) ? 1 : 0)
-                        + ((waterBill != null && waterBill.is_paid) ? 1 : 0)
-                        + ((electricBill != null && electricBill.is_paid) ? 1 : 0)
-                    let totalBills = ((roomCharge != null) ? 1 : 0)
-                        + ((waterBill != null) ? 1 : 0)
-                        + ((electricBill != null) ? 1 : 0)
-                    where paidCount > 0 && paidCount < totalBills
-                    select room;
-
-                var partiallyPaidRooms = await partialPaidRoomsQuery.CountAsync();
-
-                var unpaidRooms = totalRooms - fullyPaidRooms - partiallyPaidRooms;
-
-                // คำนวณยอดเงิน
-                var totalIncome = 0m;
-                var totalCollected = 0m;
-
-                var roomChargesIncome = await _context
-                    .room_charges_list.Where(rc =>
-                        rc.charge_month.Month == currentMonth
-                        && rc.charge_month.Year == currentYear
-                        && rc.record_status == "N"
-                    )
-                    .SumAsync(rc => rc.room_price);
-
-                var roomChargesCollected = await _context
-                    .room_charges_list.Where(rc =>
-                        rc.charge_month.Month == currentMonth
-                        && rc.charge_month.Year == currentYear
-                        && rc.is_paid
-                        && rc.record_status == "N"
-                    )
-                    .SumAsync(rc => rc.room_price);
-
-                var waterIncome = await _context
-                    .water_meters_list.Where(w =>
-                        w.meter_date.Month == currentMonth
-                        && w.meter_date.Year == currentYear
-                        && w.record_status == "N"
-                    )
-                    .SumAsync(w => w.water_bill);
-
-                var waterCollected = await _context
-                    .water_meters_list.Where(w =>
-                        w.meter_date.Month == currentMonth
-                        && w.meter_date.Year == currentYear
-                        && w.is_paid
-                        && w.record_status == "N"
-                    )
-                    .SumAsync(w => w.water_bill);
-
-                var electricIncome = await _context
-                    .electric_meters_list.Where(e =>
-                        e.meter_date.Month == currentMonth
-                        && e.meter_date.Year == currentYear
-                        && e.record_status == "N"
-                    )
-                    .SumAsync(e => e.electric_bill);
-
-                var electricCollected = await _context
-                    .electric_meters_list.Where(e =>
-                        e.meter_date.Month == currentMonth
-                        && e.meter_date.Year == currentYear
-                        && e.is_paid
-                        && e.record_status == "N"
-                    )
-                    .SumAsync(e => e.electric_bill);
-
-                totalIncome = roomChargesIncome + waterIncome + electricIncome;
-                totalCollected = roomChargesCollected + waterCollected + electricCollected;
-
-                return Json(
-                    new
-                    {
-                        success = true,
-                        summary = new
-                        {
-                            totalRooms = totalRooms,
-                            fullyPaidRooms = fullyPaidRooms,
-                            partiallyPaidRooms = partiallyPaidRooms,
-                            unpaidRooms = unpaidRooms,
-                            totalIncome = totalIncome,
-                            totalCollected = totalCollected,
-                            totalPending = totalIncome - totalCollected,
-                            collectionRate = totalIncome > 0
-                                ? Math.Round((totalCollected / totalIncome) * 100, 1)
-                                : 0,
-                            monthYear = $"{currentMonth:D2}/{currentYear}",
-                        },
-                    }
-                );
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลสรุป Mission");
-                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลสรุปได้" });
-            }
-        }
-
+        // ====== สร้างค่าห้องประจำเดือน ======
         [HttpPost]
         public async Task<IActionResult> GenerateMonthlyCharges()
         {
@@ -1115,15 +530,14 @@ namespace kfrpj.Controllers
                 var currentMonth = DateTime.Now;
                 var username = HttpContext.Session.GetString("Username") ?? "System";
                 var createdCount = 0;
+                var skippedCount = 0;
 
-                // ดึงห้องทั้งหมดที่ใช้งาน
                 var rooms = await _context
-                    .rooms_list.Where(r => r.record_status == "N")
+                    .rooms_list.Where(r => r.record_status == "N" && r.room_status == "ไม่ว่าง")
                     .ToListAsync();
 
                 foreach (var room in rooms)
                 {
-                    // ตรวจสอบว่ามีค่าห้องสำหรับเดือนนี้แล้วหรือไม่
                     var existingCharge = await _context.room_charges_list.AnyAsync(rc =>
                         rc.room_id == room.room_id
                         && rc.charge_month.Month == currentMonth.Month
@@ -1133,13 +547,15 @@ namespace kfrpj.Controllers
 
                     if (!existingCharge)
                     {
-                        // สร้างค่าห้องใหม่
+                        // ดึงวันครบกำหนดจากการตั้งค่า
+                        var dueDay = await GetRentDueDate();
+
                         var roomCharge = new room_charges_list
                         {
                             room_id = room.room_id,
                             charge_month = new DateTime(currentMonth.Year, currentMonth.Month, 1),
                             room_price = room.room_price,
-                            due_date = new DateTime(currentMonth.Year, currentMonth.Month, 5), // วันที่ 5 ของเดือน
+                            due_date = new DateTime(currentMonth.Year, currentMonth.Month, dueDay),
                             is_paid = false,
                             created_at = DateTime.Now,
                             created_by = username,
@@ -1149,16 +565,29 @@ namespace kfrpj.Controllers
                         _context.room_charges_list.Add(roomCharge);
                         createdCount++;
                     }
+                    else
+                    {
+                        skippedCount++;
+                    }
                 }
 
-                await _context.SaveChangesAsync();
+                if (createdCount > 0)
+                {
+                    await _context.SaveChangesAsync();
+                }
+
+                _logger.LogInformation(
+                    $"สร้างค่าห้องประจำเดือน: สร้างใหม่ {createdCount} ห้อง, ข้าม {skippedCount} ห้อง"
+                );
 
                 return Json(
                     new
                     {
                         success = true,
-                        message = $"สร้างค่าห้องประจำเดือนสำเร็จ จำนวน {createdCount} ห้อง",
+                        message = $"สร้างค่าห้องประจำเดือนสำเร็จ",
                         createdCount = createdCount,
+                        skippedCount = skippedCount,
+                        totalRooms = rooms.Count,
                     }
                 );
             }
@@ -1171,15 +600,1268 @@ namespace kfrpj.Controllers
             }
         }
 
-        private string GetBillTypeName(string billType)
+        // ====== ฟังก์ชันช่วยเหลือ ======
+        private async Task<(
+            decimal total,
+            decimal roomCharges,
+            decimal waterBills,
+            decimal electricBills
+        )> CalculateMonthlyIncome(int month, int year)
         {
-            return billType.ToLower() switch
+            var roomCharges = await _context
+                .room_charges_list.Where(rc =>
+                    rc.charge_month.Month == month
+                    && rc.charge_month.Year == year
+                    && rc.record_status == "N"
+                )
+                .SumAsync(rc => rc.room_price);
+
+            var waterBills = await _context
+                .water_meters_list.Where(w =>
+                    w.meter_date.Month == month
+                    && w.meter_date.Year == year
+                    && w.record_status == "N"
+                )
+                .SumAsync(w => w.water_bill);
+
+            var electricBills = await _context
+                .electric_meters_list.Where(e =>
+                    e.meter_date.Month == month
+                    && e.meter_date.Year == year
+                    && e.record_status == "N"
+                )
+                .SumAsync(e => e.electric_bill);
+
+            return (
+                roomCharges + waterBills + electricBills,
+                roomCharges,
+                waterBills,
+                electricBills
+            );
+        }
+
+        private async Task<(
+            decimal total,
+            decimal roomCharges,
+            decimal waterBills,
+            decimal electricBills
+        )> CalculateCollectedAmount(int month, int year)
+        {
+            var roomCharges = await _context
+                .room_charges_list.Where(rc =>
+                    rc.charge_month.Month == month
+                    && rc.charge_month.Year == year
+                    && rc.is_paid
+                    && rc.record_status == "N"
+                )
+                .SumAsync(rc => rc.room_price);
+
+            var waterBills = await _context
+                .water_meters_list.Where(w =>
+                    w.meter_date.Month == month
+                    && w.meter_date.Year == year
+                    && w.is_paid
+                    && w.record_status == "N"
+                )
+                .SumAsync(w => w.water_bill);
+
+            var electricBills = await _context
+                .electric_meters_list.Where(e =>
+                    e.meter_date.Month == month
+                    && e.meter_date.Year == year
+                    && e.is_paid
+                    && e.record_status == "N"
+                )
+                .SumAsync(e => e.electric_bill);
+
+            return (
+                roomCharges + waterBills + electricBills,
+                roomCharges,
+                waterBills,
+                electricBills
+            );
+        }
+
+        private async Task<int> GetPendingRoomsCount(int month, int year)
+        {
+            var rooms = await _context
+                .rooms_list.Where(r => r.record_status == "N")
+                .Select(r => r.room_id)
+                .ToListAsync();
+
+            var pendingCount = 0;
+            foreach (var roomId in rooms)
             {
-                "room" => "ค่าห้อง",
-                "water" => "ค่าน้ำ",
-                "electric" => "ค่าไฟ",
-                _ => "ค่าใช้จ่าย",
+                var hasUnpaidBills = await HasUnpaidBills(roomId, month, year);
+                if (hasUnpaidBills)
+                    pendingCount++;
+            }
+
+            return pendingCount;
+        }
+
+        private async Task<bool> HasUnpaidBills(int roomId, int month, int year)
+        {
+            var unpaidRoomCharge = await _context.room_charges_list.AnyAsync(rc =>
+                rc.room_id == roomId
+                && rc.charge_month.Month == month
+                && rc.charge_month.Year == year
+                && !rc.is_paid
+                && rc.record_status == "N"
+            );
+
+            var unpaidWater = await _context.water_meters_list.AnyAsync(w =>
+                w.room_id == roomId
+                && w.meter_date.Month == month
+                && w.meter_date.Year == year
+                && !w.is_paid
+                && w.record_status == "N"
+            );
+
+            var unpaidElectric = await _context.electric_meters_list.AnyAsync(e =>
+                e.room_id == roomId
+                && e.meter_date.Month == month
+                && e.meter_date.Year == year
+                && !e.is_paid
+                && e.record_status == "N"
+            );
+
+            return unpaidRoomCharge || unpaidWater || unpaidElectric;
+        }
+
+        private async Task<object> BuildRoomMissionData(
+            Models.rooms.rooms_list room,
+            int month,
+            int year
+        )
+        {
+            int roomId = room.room_id;
+
+            // ดึงข้อมูลค่าห้อง
+            var roomCharge = await _context
+                .room_charges_list.Where(rc =>
+                    rc.room_id == roomId
+                    && rc.charge_month.Month == month
+                    && rc.charge_month.Year == year
+                    && rc.record_status == "N"
+                )
+                .FirstOrDefaultAsync();
+
+            // ดึงข้อมูลค่าน้ำล่าสุด
+            var waterBill = await _context
+                .water_meters_list.Where(w =>
+                    w.room_id == roomId
+                    && w.meter_date.Month == month
+                    && w.meter_date.Year == year
+                    && w.record_status == "N"
+                )
+                .OrderByDescending(w => w.meter_date)
+                .FirstOrDefaultAsync();
+
+            // ดึงข้อมูลค่าไฟล่าสุด
+            var electricBill = await _context
+                .electric_meters_list.Where(e =>
+                    e.room_id == roomId
+                    && e.meter_date.Month == month
+                    && e.meter_date.Year == year
+                    && e.record_status == "N"
+                )
+                .OrderByDescending(e => e.meter_date)
+                .FirstOrDefaultAsync();
+
+            // คำนวณยอดเงิน
+            var roomChargeAmount = roomCharge?.room_price ?? room.room_price;
+            var waterAmount = waterBill?.water_bill ?? 0;
+            var electricAmount = electricBill?.electric_bill ?? 0;
+            var totalAmount = roomChargeAmount + waterAmount + electricAmount;
+
+            // สถานะการจ่าย
+            var roomChargePaid = roomCharge?.is_paid ?? false;
+            var waterPaid = waterBill?.is_paid ?? false;
+            var electricPaid = electricBill?.is_paid ?? false;
+
+            var paidAmount = 0m;
+            if (roomChargePaid)
+                paidAmount += roomChargeAmount;
+            if (waterPaid)
+                paidAmount += waterAmount;
+            if (electricPaid)
+                paidAmount += electricAmount;
+
+            var isFullyPaid = roomChargePaid && waterPaid && electricPaid;
+            var isPartiallyPaid = (roomChargePaid || waterPaid || electricPaid) && !isFullyPaid;
+
+            // ข้อมูลเพิ่มเติม
+            var daysOverdue = 0;
+            if (roomCharge != null && !roomCharge.is_paid)
+            {
+                daysOverdue = Math.Max(0, (DateTime.Now - roomCharge.due_date).Days);
+            }
+
+            return new
+            {
+                roomId = room.room_id,
+                roomName = room.room_name,
+                tenantName = await GetTenantNameByRoomId(room.room_id),
+                roomCharge = new
+                {
+                    amount = roomChargeAmount,
+                    isPaid = roomChargePaid,
+                    id = roomCharge?.room_charge_id,
+                    dueDate = roomCharge?.due_date,
+                    daysOverdue = daysOverdue,
+                },
+                waterBill = new
+                {
+                    amount = waterAmount,
+                    isPaid = waterPaid,
+                    id = waterBill?.water_meter_id,
+                    units = waterBill?.water_units ?? 0,
+                    meterDate = waterBill?.meter_date,
+                },
+                electricBill = new
+                {
+                    amount = electricAmount,
+                    isPaid = electricPaid,
+                    id = electricBill?.electric_meter_id,
+                    units = electricBill?.electric_units ?? 0,
+                    meterDate = electricBill?.meter_date,
+                },
+                totalAmount = totalAmount,
+                paidAmount = paidAmount,
+                pendingAmount = totalAmount - paidAmount,
+                isFullyPaid = isFullyPaid,
+                isPartiallyPaid = isPartiallyPaid,
+                paymentProgress = totalAmount > 0 ? (int)((paidAmount / totalAmount) * 100) : 0,
+                priority = GetRoomPriority(daysOverdue, isFullyPaid, isPartiallyPaid),
+                lastUpdateDate = new[]
+                {
+                    roomCharge?.updated_at,
+                    waterBill?.updated_at,
+                    electricBill?.updated_at,
+                }
+                    .Where(d => d.HasValue)
+                    .DefaultIfEmpty(DateTime.MinValue)
+                    .Max(),
             };
+        }
+
+        private async Task<string> GetTenantNameByRoomId(int roomId)
+        {
+            // สำหรับอนาคต เมื่อมีตาราง tenant-room relationship
+            // var tenant = await _context.tenants_list
+            //     .Where(t => t.room_id == roomId && t.record_status == "N")
+            //     .FirstOrDefaultAsync();
+            // return tenant?.name ?? "ไม่มีผู้เช่า";
+
+            return "ผู้เช่า"; // ค่าเริ่มต้นชั่วคราว
+        }
+
+        private string GetTenantName(int roomId)
+        {
+            // ฟังก์ชันเดียวกับด้านบน แต่แบบ sync
+            return "ผู้เช่า";
+        }
+
+        private int GetRoomPriority(int daysOverdue, bool isFullyPaid, bool isPartiallyPaid)
+        {
+            if (isFullyPaid)
+                return 3; // ลำดับสุดท้าย
+            if (daysOverdue > 7)
+                return 0; // ลำดับแรก (เร่งด่วน)
+            if (daysOverdue > 0)
+                return 1; // ลำดับที่สอง (ค้างชำระ)
+            if (isPartiallyPaid)
+                return 1; // ลำดับที่สอง (จ่ายบางส่วน)
+            return 2; // ลำดับที่สาม (ยังไม่ถึงกำหนด)
+        }
+
+        private int GetPriorityScore(dynamic roomData)
+        {
+            return (int)roomData.priority;
+        }
+
+        private decimal CalculateGrowthRate(decimal currentValue, decimal previousValue)
+        {
+            if (previousValue == 0)
+                return 0;
+            return Math.Round(((currentValue - previousValue) / previousValue) * 100, 1);
+        }
+
+        // ====== ฟังก์ชันตรวจสอบข้อมูล ======
+        private async Task<(bool isValid, string message)> ValidateWaterBill(
+            water_meters_list waterBill
+        )
+        {
+            if (waterBill.people_count <= 0)
+            {
+                return (false, "จำนวนคนต้องมากกว่า 0");
+            }
+
+            if (waterBill.people_count > 10)
+            {
+                return (false, "จำนวนคนเกินกว่าปกติ (มากกว่า 10 คน)");
+            }
+
+            // ตรวจสอบว่ามีข้อมูลซ้ำในเดือนเดียวกันหรือไม่
+            var currentMonth = DateTime.Now;
+            var existingRecord = await _context.water_meters_list.AnyAsync(w =>
+                w.room_id == waterBill.room_id
+                && w.meter_date.Month == currentMonth.Month
+                && w.meter_date.Year == currentMonth.Year
+                && w.record_status == "N"
+            );
+
+            if (existingRecord)
+            {
+                return (false, "มีข้อมูลค่าน้ำสำหรับเดือนนี้อยู่แล้ว");
+            }
+
+            return (true, "");
+        }
+
+        private async Task<(bool isValid, string message)> ValidateElectricMeter(
+            electric_meters_list electricMeter
+        )
+        {
+            if (electricMeter.new_meter <= electricMeter.old_meter)
+            {
+                return (false, "เลขมิเตอร์ใหม่ต้องมากกว่าเลขมิเตอร์เก่า");
+            }
+
+            if (electricMeter.new_meter - electricMeter.old_meter > 2000)
+            {
+                return (false, "จำนวนหน่วยใช้ไฟเกินกว่าปกติ (มากกว่า 2000 หน่วย)");
+            }
+
+            // ตรวจสอบว่ามีข้อมูลซ้ำในเดือนเดียวกันหรือไม่
+            var existingRecord = await _context.electric_meters_list.AnyAsync(e =>
+                e.room_id == electricMeter.room_id
+                && e.meter_date.Month == electricMeter.meter_date.Month
+                && e.meter_date.Year == electricMeter.meter_date.Year
+                && e.record_status == "N"
+            );
+
+            if (existingRecord)
+            {
+                return (false, "มีข้อมูลค่าไฟสำหรับเดือนนี้อยู่แล้ว");
+            }
+
+            return (true, "");
+        }
+
+        // ====== ฟังก์ชันดึงค่าตั้งค่า ======
+        private async Task<decimal> GetWaterRate()
+        {
+            var setting = await _context.settings_list.FirstOrDefaultAsync(s =>
+                s.setting_key == "WATER_RATE_PER_UNIT" && s.record_status == "N"
+            );
+            return decimal.TryParse(setting?.setting_value, out var rate) ? rate : 15.00m;
+        }
+
+        private async Task<decimal> GetElectricRate()
+        {
+            var setting = await _context.settings_list.FirstOrDefaultAsync(s =>
+                s.setting_key == "ELECTRIC_RATE_PER_UNIT" && s.record_status == "N"
+            );
+            return decimal.TryParse(setting?.setting_value, out var rate) ? rate : 5.00m;
+        }
+
+        private async Task<int> GetRentDueDate()
+        {
+            var setting = await _context.settings_list.FirstOrDefaultAsync(s =>
+                s.setting_key == "RENT_DUE_DATE" && s.record_status == "N"
+            );
+            return int.TryParse(setting?.setting_value, out var day) ? day : 5;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRates()
+        {
+            try
+            {
+                var waterRate = await GetWaterRate();
+                var electricRate = await GetElectricRate();
+                var serviceFee = await GetServiceFee();
+
+                return Json(
+                    new
+                    {
+                        waterRate = waterRate,
+                        electricRate = electricRate,
+                        serviceFee = serviceFee,
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลอัตราค่าใช้จ่าย");
+                return Json(
+                    new
+                    {
+                        waterRate = 15.00m,
+                        electricRate = 5.00m,
+                        serviceFee = 200.00m,
+                    }
+                );
+            }
+        }
+
+        private async Task<decimal> GetServiceFee()
+        {
+            var setting = await _context.settings_list.FirstOrDefaultAsync(s =>
+                s.setting_key == "MONTHLY_SERVICE_FEE" && s.record_status == "N"
+            );
+            return decimal.TryParse(setting?.setting_value, out var fee) ? fee : 200.00m;
+        }
+
+        // ====== API เพิ่มเติม ======
+        [HttpGet]
+        public async Task<IActionResult> GetPaymentHistory(int roomId, int months = 6)
+        {
+            try
+            {
+                var endDate = DateTime.Now;
+                var startDate = endDate.AddMonths(-months);
+
+                var roomCharges = await _context
+                    .room_charges_list.Where(rc =>
+                        rc.room_id == roomId
+                        && rc.charge_month >= startDate
+                        && rc.record_status == "N"
+                    )
+                    .OrderByDescending(rc => rc.charge_month)
+                    .ToListAsync();
+
+                var waterBills = await _context
+                    .water_meters_list.Where(w =>
+                        w.room_id == roomId && w.meter_date >= startDate && w.record_status == "N"
+                    )
+                    .OrderByDescending(w => w.meter_date)
+                    .ToListAsync();
+
+                var electricBills = await _context
+                    .electric_meters_list.Where(e =>
+                        e.room_id == roomId && e.meter_date >= startDate && e.record_status == "N"
+                    )
+                    .OrderByDescending(e => e.meter_date)
+                    .ToListAsync();
+
+                return Json(
+                    new
+                    {
+                        success = true,
+                        roomCharges = roomCharges,
+                        waterBills = waterBills,
+                        electricBills = electricBills,
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงประวัติการชำระเงิน ห้อง {roomId}");
+                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลประวัติได้" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetOverdueReport()
+        {
+            try
+            {
+                var today = DateTime.Now.Date;
+
+                var overdueRoomCharges = await _context
+                    .room_charges_list.Include(rc => rc.Room)
+                    .Where(rc => !rc.is_paid && rc.due_date < today && rc.record_status == "N")
+                    .Select(rc => new
+                    {
+                        roomId = rc.room_id,
+                        roomName = rc.Room.room_name,
+                        amount = rc.room_price,
+                        dueDate = rc.due_date,
+                        daysOverdue = (today - rc.due_date).Days,
+                        type = "ค่าห้อง",
+                    })
+                    .ToListAsync();
+
+                var totalOverdue = overdueRoomCharges.Sum(r => r.amount);
+                var avgDaysOverdue = overdueRoomCharges.Any()
+                    ? Math.Round(overdueRoomCharges.Average(r => r.daysOverdue), 1)
+                    : 0;
+
+                return Json(
+                    new
+                    {
+                        success = true,
+                        overdueItems = overdueRoomCharges,
+                        summary = new
+                        {
+                            totalAmount = totalOverdue,
+                            totalItems = overdueRoomCharges.Count,
+                            averageDaysOverdue = avgDaysOverdue,
+                        },
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการสร้างรายงานค้างชำระ");
+                return Json(new { success = false, message = "ไม่สามารถสร้างรายงานได้" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> BulkMarkAsPaid([FromBody] List<int> roomIds)
+        {
+            try
+            {
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+                var username = HttpContext.Session.GetString("Username") ?? "System";
+                var successCount = 0;
+
+                foreach (var roomId in roomIds)
+                {
+                    try
+                    {
+                        var result = await MarkRoomAsPaidInternal(
+                            roomId,
+                            currentMonth,
+                            currentYear,
+                            username
+                        );
+                        if (result > 0)
+                            successCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"เกิดข้อผิดพลาดในการเก็บเงินห้อง {roomId}");
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Json(
+                    new
+                    {
+                        success = true,
+                        message = $"เก็บเงินเรียบร้อยแล้ว {successCount}/{roomIds.Count} ห้อง",
+                        successCount = successCount,
+                        totalCount = roomIds.Count,
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการเก็บเงินหลายห้อง");
+                return Json(new { success = false, message = "ไม่สามารถเก็บเงินได้" });
+            }
+        }
+
+        private async Task<int> MarkRoomAsPaidInternal(
+            int roomId,
+            int month,
+            int year,
+            string username
+        )
+        {
+            var updateCount = 0;
+
+            // อัพเดทค่าห้อง
+            var roomCharge = await _context
+                .room_charges_list.Where(rc =>
+                    rc.room_id == roomId
+                    && rc.charge_month.Month == month
+                    && rc.charge_month.Year == year
+                    && rc.record_status == "N"
+                    && !rc.is_paid
+                )
+                .FirstOrDefaultAsync();
+
+            if (roomCharge != null)
+            {
+                roomCharge.is_paid = true;
+                roomCharge.paid_date = DateTime.Now;
+                roomCharge.updated_at = DateTime.Now;
+                roomCharge.updated_by = username;
+                updateCount++;
+            }
+
+            // อัพเดทค่าน้ำ
+            var waterBill = await _context
+                .water_meters_list.Where(w =>
+                    w.room_id == roomId
+                    && w.meter_date.Month == month
+                    && w.meter_date.Year == year
+                    && w.record_status == "N"
+                    && !w.is_paid
+                )
+                .FirstOrDefaultAsync();
+
+            if (waterBill != null)
+            {
+                waterBill.is_paid = true;
+                waterBill.updated_at = DateTime.Now;
+                waterBill.updated_by = username;
+                updateCount++;
+            }
+
+            // อัพเดทค่าไฟ
+            var electricBill = await _context
+                .electric_meters_list.Where(e =>
+                    e.room_id == roomId
+                    && e.meter_date.Month == month
+                    && e.meter_date.Year == year
+                    && e.record_status == "N"
+                    && !e.is_paid
+                )
+                .FirstOrDefaultAsync();
+
+            if (electricBill != null)
+            {
+                electricBill.is_paid = true;
+                electricBill.updated_at = DateTime.Now;
+                electricBill.updated_by = username;
+                updateCount++;
+            }
+
+            return updateCount;
+        }
+
+        // ====== API สำหรับการลบข้อมูล ======
+        [HttpDelete]
+        public async Task<IActionResult> DeleteWaterMeter(int id)
+        {
+            try
+            {
+                var waterMeter = await _context.water_meters_list.FindAsync(id);
+                if (waterMeter == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการลบ" });
+
+                waterMeter.record_status = "D";
+                waterMeter.updated_at = DateTime.Now;
+                waterMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "ลบข้อมูลเรียบร้อยแล้ว" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบข้อมูลค่าน้ำ ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถลบข้อมูลได้" });
+            }
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> DeleteElectricMeter(int id)
+        {
+            try
+            {
+                var electricMeter = await _context.electric_meters_list.FindAsync(id);
+                if (electricMeter == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการลบ" });
+
+                electricMeter.record_status = "D";
+                electricMeter.updated_at = DateTime.Now;
+                electricMeter.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "ลบข้อมูลเรียบร้อยแล้ว" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบข้อมูลค่าไฟ ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถลบข้อมูลได้" });
+            }
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> DeleteRoomCharge(int id)
+        {
+            try
+            {
+                var roomCharge = await _context.room_charges_list.FindAsync(id);
+                if (roomCharge == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการลบ" });
+
+                roomCharge.record_status = "D";
+                roomCharge.updated_at = DateTime.Now;
+                roomCharge.updated_by = HttpContext.Session.GetString("Username") ?? "System";
+
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "ลบข้อมูลเรียบร้อยแล้ว" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการลบข้อมูลค่าห้อง ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถลบข้อมูลได้" });
+            }
+        }
+
+        // ====== API สำหรับการพิมพ์และส่งออกข้อมูล ======
+        [HttpGet]
+        public async Task<IActionResult> ExportMissionData()
+        {
+            try
+            {
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+
+                var rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
+                    .OrderBy(r => r.room_name)
+                    .ToListAsync();
+
+                var exportData = new List<object>();
+
+                foreach (var room in rooms)
+                {
+                    var roomData = await BuildRoomMissionData(room, currentMonth, currentYear);
+                    exportData.Add(roomData);
+                }
+
+                var csv = GenerateCSV(exportData);
+                var bytes = Encoding.UTF8.GetBytes(csv);
+
+                return File(
+                    bytes,
+                    "text/csv",
+                    $"Mission_Export_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการส่งออกข้อมูล Mission");
+                return Json(new { success = false, message = "ไม่สามารถส่งออกข้อมูลได้" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> PrintMissionList()
+        {
+            try
+            {
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+
+                var rooms = await _context
+                    .rooms_list.Where(r => r.record_status == "N")
+                    .OrderBy(r => r.room_name)
+                    .ToListAsync();
+
+                var missionData = new List<object>();
+
+                foreach (var room in rooms)
+                {
+                    var roomData = await BuildRoomMissionData(room, currentMonth, currentYear);
+                    missionData.Add(roomData);
+                }
+
+                var html = GeneratePrintableHTML(missionData);
+
+                return Content(html, "text/html", Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการสร้างรายการพิมพ์");
+                return BadRequest("ไม่สามารถสร้างรายการพิมพ์ได้");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GenerateRoomReceipt(int roomId)
+        {
+            try
+            {
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+
+                var room = await _context.rooms_list.FindAsync(roomId);
+                if (room == null)
+                    return BadRequest("ไม่พบข้อมูลห้อง");
+
+                var roomData = await BuildRoomMissionData(room, currentMonth, currentYear);
+                var html = GenerateReceiptHTML(roomData);
+
+                return Content(html, "text/html", Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการสร้างใบเสร็จห้อง {roomId}");
+                return BadRequest("ไม่สามารถสร้างใบเสร็จได้");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRoomDetail(int roomId)
+        {
+            try
+            {
+                var room = await _context.rooms_list.FindAsync(roomId);
+                if (room == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลห้อง" });
+
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+
+                var roomDetail = await BuildDetailedRoomData(room, currentMonth, currentYear);
+
+                return Json(new { success = true, data = roomDetail });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการดึงรายละเอียดห้อง {roomId}");
+                return Json(new { success = false, message = "ไม่สามารถดึงข้อมูลได้" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateWaterBill(int id)
+        {
+            try
+            {
+                var existingWaterBill = await _context.water_meters_list.FindAsync(id);
+                if (existingWaterBill == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการแก้ไข" });
+
+                // ดึงข้อมูลจาก form
+                var roomId = int.Parse(Request.Form["room_id"]);
+                var peopleCount = int.Parse(Request.Form["people_count"]);
+                var notes = Request.Form["notes"];
+
+                // ตรวจสอบข้อมูล
+                if (peopleCount <= 0)
+                    return Json(new { success = false, message = "จำนวนคนต้องมากกว่า 0" });
+
+                var waterRate = await GetWaterRate();
+
+                existingWaterBill.room_id = roomId;
+                existingWaterBill.water_units = peopleCount; // ใช้เป็นจำนวนคน
+                existingWaterBill.water_bill = peopleCount * waterRate;
+                existingWaterBill.notes = notes;
+                existingWaterBill.updated_at = DateTime.Now;
+                existingWaterBill.updated_by =
+                    HttpContext.Session.GetString("Username") ?? "System";
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "แก้ไขข้อมูลค่าน้ำเรียบร้อยแล้ว" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลค่าน้ำ ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถแก้ไขข้อมูลได้" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateElectricMeter(
+            int id,
+            [FromForm] electric_meters_list electricMeter
+        )
+        {
+            try
+            {
+                var existingElectricMeter = await _context.electric_meters_list.FindAsync(id);
+                if (existingElectricMeter == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการแก้ไข" });
+
+                var validation = await ValidateElectricMeter(electricMeter, id);
+                if (!validation.isValid)
+                    return Json(new { success = false, message = validation.message });
+
+                var electricRate = await GetElectricRate();
+
+                existingElectricMeter.room_id = electricMeter.room_id;
+                existingElectricMeter.meter_date = electricMeter.meter_date;
+                existingElectricMeter.old_meter = electricMeter.old_meter;
+                existingElectricMeter.new_meter = electricMeter.new_meter;
+                existingElectricMeter.electric_units =
+                    existingElectricMeter.new_meter - existingElectricMeter.old_meter;
+                existingElectricMeter.electric_bill =
+                    existingElectricMeter.electric_units * electricRate;
+                existingElectricMeter.notes = electricMeter.notes;
+                existingElectricMeter.updated_at = DateTime.Now;
+                existingElectricMeter.updated_by =
+                    HttpContext.Session.GetString("Username") ?? "System";
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "แก้ไขข้อมูลค่าไฟเรียบร้อยแล้ว" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลค่าไฟ ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถแก้ไขข้อมูลได้" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateRoomCharge(
+            int id,
+            [FromForm] room_charges_list roomCharge
+        )
+        {
+            try
+            {
+                var existingRoomCharge = await _context.room_charges_list.FindAsync(id);
+                if (existingRoomCharge == null)
+                    return Json(new { success = false, message = "ไม่พบข้อมูลที่ต้องการแก้ไข" });
+
+                // ตรวจสอบว่ามีค่าห้องสำหรับเดือนนี้แล้วหรือไม่ (ยกเว้นรายการปัจจุบัน)
+                var existingCharge = await _context.room_charges_list.AnyAsync(rc =>
+                    rc.room_id == roomCharge.room_id
+                    && rc.charge_month.Month == roomCharge.charge_month.Month
+                    && rc.charge_month.Year == roomCharge.charge_month.Year
+                    && rc.record_status == "N"
+                    && rc.room_charge_id != id
+                );
+
+                if (existingCharge)
+                {
+                    return Json(
+                        new { success = false, message = "มีค่าห้องสำหรับเดือนนี้อยู่แล้ว" }
+                    );
+                }
+
+                existingRoomCharge.room_id = roomCharge.room_id;
+                existingRoomCharge.charge_month = roomCharge.charge_month;
+                existingRoomCharge.room_price = roomCharge.room_price;
+                existingRoomCharge.due_date = roomCharge.due_date;
+                existingRoomCharge.notes = roomCharge.notes;
+                existingRoomCharge.updated_at = DateTime.Now;
+                existingRoomCharge.updated_by =
+                    HttpContext.Session.GetString("Username") ?? "System";
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "แก้ไขข้อมูลค่าห้องเรียบร้อยแล้ว" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"เกิดข้อผิดพลาดในการแก้ไขข้อมูลค่าห้อง ID: {id}");
+                return Json(new { success = false, message = "ไม่สามารถแก้ไขข้อมูลได้" });
+            }
+        }
+
+        // ====== ฟังก์ชันช่วยเหลือสำหรับการพิมพ์และส่งออก ======
+        private string GenerateCSV(List<object> data)
+        {
+            var csv = new StringBuilder();
+            csv.AppendLine("ห้อง,ผู้เช่า,ค่าห้อง,ค่าน้ำ,ค่าไฟ,รวมทั้งหมด,สถานะ");
+
+            foreach (dynamic room in data)
+            {
+                var status =
+                    room.isFullyPaid ? "จ่ายครบ"
+                    : room.isPartiallyPaid ? "จ่ายบางส่วน"
+                    : "ยังไม่จ่าย";
+                csv.AppendLine(
+                    $"{room.roomName},{room.tenantName},{room.roomCharge.amount},{room.waterBill.amount},{room.electricBill.amount},{room.totalAmount},{status}"
+                );
+            }
+
+            return csv.ToString();
+        }
+
+        private string GeneratePrintableHTML(List<object> data)
+        {
+            var html = new StringBuilder();
+
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html>");
+            html.AppendLine("<head>");
+            html.AppendLine("<meta charset='utf-8'>");
+            html.AppendLine(
+                "<title>Mission เก็บเงิน - "
+                    + DateTime.Now.ToString("MMMM yyyy", new CultureInfo("th-TH"))
+                    + "</title>"
+            );
+            html.AppendLine("<style>");
+            html.AppendLine(
+                @"
+                body { font-family: 'THSarabunNew', sans-serif; font-size: 16px; margin: 20px; }
+                h1 { text-align: center; color: #333; margin-bottom: 30px; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                th { background-color: #f5f5f5; font-weight: bold; }
+                .text-success { color: #28a745; }
+                .text-danger { color: #dc3545; }
+                .text-warning { color: #ffc107; }
+                .footer { margin-top: 30px; text-align: center; color: #666; }
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                }
+            "
+            );
+            html.AppendLine("</style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+
+            html.AppendLine(
+                $"<h1>Mission เก็บเงิน - {DateTime.Now.ToString("MMMM yyyy", new CultureInfo("th-TH"))}</h1>"
+            );
+            html.AppendLine("<table>");
+            html.AppendLine("<thead>");
+            html.AppendLine("<tr>");
+            html.AppendLine(
+                "<th>ห้อง</th><th>ผู้เช่า</th><th>ค่าห้อง</th><th>ค่าน้ำ</th><th>ค่าไฟ</th><th>รวมทั้งหมด</th><th>สถานะ</th>"
+            );
+            html.AppendLine("</tr>");
+            html.AppendLine("</thead>");
+            html.AppendLine("<tbody>");
+
+            decimal totalAmount = 0;
+
+            foreach (dynamic room in data)
+            {
+                var statusClass =
+                    room.isFullyPaid ? "text-success"
+                    : room.isPartiallyPaid ? "text-warning"
+                    : "text-danger";
+                var statusText =
+                    room.isFullyPaid ? "จ่ายครบ"
+                    : room.isPartiallyPaid ? "จ่ายบางส่วน"
+                    : "ยังไม่จ่าย";
+
+                totalAmount += (decimal)room.pendingAmount;
+
+                html.AppendLine("<tr>");
+                html.AppendLine($"<td>{room.roomName}</td>");
+                html.AppendLine($"<td>{room.tenantName}</td>");
+                html.AppendLine($"<td>{((decimal)room.roomCharge.amount).ToString("N0")}</td>");
+                html.AppendLine($"<td>{((decimal)room.waterBill.amount).ToString("N0")}</td>");
+                html.AppendLine($"<td>{((decimal)room.electricBill.amount).ToString("N0")}</td>");
+                html.AppendLine(
+                    $"<td><strong>{((decimal)room.totalAmount).ToString("N0")}</strong></td>"
+                );
+                html.AppendLine($"<td class='{statusClass}'>{statusText}</td>");
+                html.AppendLine("</tr>");
+            }
+
+            html.AppendLine("</tbody>");
+            html.AppendLine("</table>");
+
+            html.AppendLine($"<div class='footer'>");
+            html.AppendLine(
+                $"<p>รวมยอดค้างชำระทั้งหมด: <strong>{totalAmount.ToString("N0")} บาท</strong></p>"
+            );
+            html.AppendLine($"<p>พิมพ์เมื่อ: {DateTime.Now.ToString("dd/MM/yyyy HH:mm")}</p>");
+            html.AppendLine("</div>");
+
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private string GenerateReceiptHTML(dynamic roomData)
+        {
+            var html = new StringBuilder();
+            var currentDate = DateTime.Now.ToString("dd/MM/yyyy");
+            var currentMonth = DateTime.Now.ToString("MMMM yyyy", new CultureInfo("th-TH"));
+            var printTime = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html>");
+            html.AppendLine("<head>");
+            html.AppendLine("<meta charset='utf-8'>");
+            html.AppendLine($"<title>ใบเสร็จรับเงิน - ห้อง {roomData.roomName}</title>");
+            html.AppendLine("<style>");
+            html.AppendLine(
+                @"
+                body { font-family: 'THSarabunNew', sans-serif; font-size: 18px; margin: 20px; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .receipt-details { margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+                th { background-color: #f5f5f5; font-weight: bold; }
+                .total { font-weight: bold; font-size: 20px; }
+                .text-end { text-align: right; }
+                .footer { margin-top: 30px; text-align: center; }
+                @media print { body { margin: 0; } }
+            "
+            );
+            html.AppendLine("</style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+
+            html.AppendLine("<div class='header'>");
+            html.AppendLine("<h2>ใบเสร็จรับเงิน</h2>");
+            html.AppendLine($"<p>วันที่: {currentDate}</p>");
+            html.AppendLine("</div>");
+
+            html.AppendLine("<div class='receipt-details'>");
+            html.AppendLine($"<p><strong>ห้อง:</strong> {roomData.roomName}</p>");
+            html.AppendLine($"<p><strong>ผู้เช่า:</strong> {roomData.tenantName}</p>");
+            html.AppendLine($"<p><strong>เดือน:</strong> {currentMonth}</p>");
+            html.AppendLine("</div>");
+
+            html.AppendLine("<table>");
+            html.AppendLine("<thead>");
+            html.AppendLine("<tr><th>รายการ</th><th>จำนวนเงิน (บาท)</th></tr>");
+            html.AppendLine("</thead>");
+            html.AppendLine("<tbody>");
+            html.AppendLine(
+                $"<tr><td>ค่าห้อง</td><td class='text-end'>{((decimal)roomData.roomCharge.amount).ToString("N0")}</td></tr>"
+            );
+            html.AppendLine(
+                $"<tr><td>ค่าน้ำ ({roomData.waterBill.units} หน่วย)</td><td class='text-end'>{((decimal)roomData.waterBill.amount).ToString("N0")}</td></tr>"
+            );
+            html.AppendLine(
+                $"<tr><td>ค่าไฟ ({roomData.electricBill.units} หน่วย)</td><td class='text-end'>{((decimal)roomData.electricBill.amount).ToString("N0")}</td></tr>"
+            );
+            html.AppendLine(
+                $"<tr class='total'><td>รวมทั้งหมด</td><td class='text-end'>{((decimal)roomData.totalAmount).ToString("N0")}</td></tr>"
+            );
+            html.AppendLine("</tbody>");
+            html.AppendLine("</table>");
+
+            html.AppendLine("<div class='footer'>");
+            html.AppendLine("<p>ขอบคุณที่ชำระเงินตรงเวลา</p>");
+            html.AppendLine($"<p><small>พิมพ์เมื่อ: {printTime}</small></p>");
+            html.AppendLine("</div>");
+
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private async Task<object> BuildDetailedRoomData(rooms_list room, int month, int year)
+        {
+            var roomData = await BuildRoomMissionData(room, month, year);
+
+            // เพิ่มข้อมูลประวัติการชำระ 6 เดือนย้อนหลัง
+            var paymentHistory = await GetPaymentHistoryInternal(room.room_id, 6);
+
+            return new { roomInfo = roomData, paymentHistory = paymentHistory };
+        }
+
+        private async Task<object> GetPaymentHistoryInternal(int roomId, int months)
+        {
+            var endDate = DateTime.Now;
+            var startDate = endDate.AddMonths(-months);
+
+            var roomCharges = await _context
+                .room_charges_list.Where(rc =>
+                    rc.room_id == roomId && rc.charge_month >= startDate && rc.record_status == "N"
+                )
+                .OrderByDescending(rc => rc.charge_month)
+                .Select(rc => new
+                {
+                    month = rc.charge_month.ToString("MM/yyyy"),
+                    amount = rc.room_price,
+                    isPaid = rc.is_paid,
+                    paidDate = rc.paid_date,
+                    type = "ค่าห้อง",
+                })
+                .ToListAsync();
+
+            var waterBills = await _context
+                .water_meters_list.Where(w =>
+                    w.room_id == roomId && w.meter_date >= startDate && w.record_status == "N"
+                )
+                .OrderByDescending(w => w.meter_date)
+                .Select(w => new
+                {
+                    month = w.meter_date.ToString("MM/yyyy"),
+                    amount = w.water_bill,
+                    units = w.water_units,
+                    isPaid = w.is_paid,
+                    type = "ค่าน้ำ",
+                })
+                .ToListAsync();
+
+            var electricBills = await _context
+                .electric_meters_list.Where(e =>
+                    e.room_id == roomId && e.meter_date >= startDate && e.record_status == "N"
+                )
+                .OrderByDescending(e => e.meter_date)
+                .Select(e => new
+                {
+                    month = e.meter_date.ToString("MM/yyyy"),
+                    amount = e.electric_bill,
+                    units = e.electric_units,
+                    isPaid = e.is_paid,
+                    type = "ค่าไฟ",
+                })
+                .ToListAsync();
+
+            return new
+            {
+                roomCharges = roomCharges,
+                waterBills = waterBills,
+                electricBills = electricBills,
+            };
+        }
+
+        // ปรับปรุงฟังก์ชัน ValidateWaterMeter และ ValidateElectricMeter ให้รองรับการแก้ไข
+        private async Task<(bool isValid, string message)> ValidateWaterMeter(
+            water_meters_list waterMeter,
+            int? excludeId = null
+        )
+        { 
+
+            var query = _context.water_meters_list.Where(w =>
+                w.room_id == waterMeter.room_id
+                && w.meter_date.Month == waterMeter.meter_date.Month
+                && w.meter_date.Year == waterMeter.meter_date.Year
+                && w.record_status == "N"
+            );
+
+            if (excludeId.HasValue)
+            {
+                query = query.Where(w => w.water_meter_id != excludeId.Value);
+            }
+
+            var existingRecord = await query.AnyAsync();
+
+            if (existingRecord)
+            {
+                return (false, "มีข้อมูลค่าน้ำสำหรับเดือนนี้อยู่แล้ว");
+            }
+
+            return (true, "");
+        }
+
+        private async Task<(bool isValid, string message)> ValidateElectricMeter(
+            electric_meters_list electricMeter,
+            int? excludeId = null
+        )
+        {
+            if (electricMeter.new_meter <= electricMeter.old_meter)
+            {
+                return (false, "เลขมิเตอร์ใหม่ต้องมากกว่าเลขมิเตอร์เก่า");
+            }
+
+            if (electricMeter.new_meter - electricMeter.old_meter > 2000)
+            {
+                return (false, "จำนวนหน่วยใช้ไฟเกินกว่าปกติ (มากกว่า 2000 หน่วย)");
+            }
+
+            var query = _context.electric_meters_list.Where(e =>
+                e.room_id == electricMeter.room_id
+                && e.meter_date.Month == electricMeter.meter_date.Month
+                && e.meter_date.Year == electricMeter.meter_date.Year
+                && e.record_status == "N"
+            );
+
+            if (excludeId.HasValue)
+            {
+                query = query.Where(e => e.electric_meter_id != excludeId.Value);
+            }
+
+            var existingRecord = await query.AnyAsync();
+
+            if (existingRecord)
+            {
+                return (false, "มีข้อมูลค่าไฟสำหรับเดือนนี้อยู่แล้ว");
+            }
+
+            return (true, "");
         }
     }
 }

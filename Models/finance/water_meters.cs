@@ -1,6 +1,7 @@
 // Models/finance/water_meters.cs
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using kfrpj.Models.rooms;
 
 namespace kfrpj.Models.finance
 {
@@ -8,7 +9,7 @@ namespace kfrpj.Models.finance
     public class water_meters_list
     {
         [Key]
-        [Display(Name = "รหัสมิเตอร์น้ำ")]
+        [Display(Name = "รหัสค่าน้ำ")]
         public int water_meter_id { get; set; }
 
         [Required]
@@ -19,16 +20,12 @@ namespace kfrpj.Models.finance
         [Display(Name = "วันที่บันทึก")]
         public DateTime meter_date { get; set; }
 
-        [Required]
-        [Display(Name = "เลขมิเตอร์เก่า")]
-        public int old_meter { get; set; }
+        [Display(Name = "จำนวนคน")]
+        public int people_count { get; set; } = 0;
 
         [Required]
-        [Display(Name = "เลขมิเตอร์ใหม่")]
-        public int new_meter { get; set; }
-
-        [Display(Name = "จำนวนหน่วย")]
-        public int water_units { get; set; }
+        [Display(Name = "จำนวนคน")]
+        public int water_units { get; set; } // ใช้เป็นจำนวนคนแทน
 
         [Display(Name = "ค่าน้ำ")]
         [Column(TypeName = "decimal(18,2)")]
@@ -41,6 +38,7 @@ namespace kfrpj.Models.finance
         public string? notes { get; set; }
 
         // คอลัมน์มาตรฐาน
+        [Required]
         [Display(Name = "วันที่สร้าง")]
         public DateTime created_at { get; set; }
 
@@ -53,12 +51,13 @@ namespace kfrpj.Models.finance
         [Display(Name = "ผู้แก้ไข")]
         public string? updated_by { get; set; }
 
+        [Required]
         [Display(Name = "สถานะการใช้งาน")]
         public string record_status { get; set; } = "N";
 
         // Navigation properties
         [ForeignKey("room_id")]
-        public virtual rooms.rooms_list? Room { get; set; }
+        public virtual rooms_list? Room { get; set; }
     }
 
     [Table("electric_meters_list")]
@@ -98,6 +97,7 @@ namespace kfrpj.Models.finance
         public string? notes { get; set; }
 
         // คอลัมน์มาตรฐาน
+        [Required]
         [Display(Name = "วันที่สร้าง")]
         public DateTime created_at { get; set; }
 
@@ -110,12 +110,13 @@ namespace kfrpj.Models.finance
         [Display(Name = "ผู้แก้ไข")]
         public string? updated_by { get; set; }
 
+        [Required]
         [Display(Name = "สถานะการใช้งาน")]
         public string record_status { get; set; } = "N";
 
         // Navigation properties
         [ForeignKey("room_id")]
-        public virtual rooms.rooms_list? Room { get; set; }
+        public virtual rooms_list? Room { get; set; }
     }
 
     [Table("room_charges_list")]
@@ -152,6 +153,7 @@ namespace kfrpj.Models.finance
         public string? notes { get; set; }
 
         // คอลัมน์มาตรฐาน
+        [Required]
         [Display(Name = "วันที่สร้าง")]
         public DateTime created_at { get; set; }
 
@@ -164,11 +166,12 @@ namespace kfrpj.Models.finance
         [Display(Name = "ผู้แก้ไข")]
         public string? updated_by { get; set; }
 
+        [Required]
         [Display(Name = "สถานะการใช้งาน")]
         public string record_status { get; set; } = "N";
 
         // Navigation properties
         [ForeignKey("room_id")]
-        public virtual rooms.rooms_list? Room { get; set; }
+        public virtual rooms_list? Room { get; set; }
     }
 }
