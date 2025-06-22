@@ -1,17 +1,18 @@
-using Microsoft.AspNetCore.Mvc;
+using BCrypt.Net;
 using kfrpj.Data;
 using kfrpj.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using BCrypt.Net;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace kfrpj.Controllers
 {
     public class AuthenController : Controller
     {
+        // ประกาศตัวแปรสำหรับการเชื่อมต่อกับฐานข้อมูล
         private readonly ApplicationDbContext _context;
         private readonly ILogger<AuthenController> _logger;
 
@@ -42,17 +43,19 @@ namespace kfrpj.Controllers
             {
                 // ตรวจสอบข้อมูลที่ส่งมา
                 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-                { 
+                {
                     TempData["LoginError"] = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
                     return RedirectToAction("Login");
                 }
 
                 // ค้นหาผู้ใช้จากฐานข้อมูล
-                var user = await _context.sys_users
-                    .Join(_context.sys_users_password, 
-                        u => u.id, 
-                        p => p.user_id, 
-                        (u, p) => new { u, p })
+                var user = await _context
+                    .sys_users.Join(
+                        _context.sys_users_password,
+                        u => u.id,
+                        p => p.user_id,
+                        (u, p) => new { u, p }
+                    )
                     .FirstOrDefaultAsync(up => up.u.username == username.Trim());
 
                 // ตรวจสอบว่าพบผู้ใช้หรือไม่
@@ -105,18 +108,28 @@ namespace kfrpj.Controllers
 
         // จัดการการ Register
         [HttpPost]
-        public async Task<IActionResult> Register(string username, string password, string fullname, string email, string phone_number)
+        public async Task<IActionResult> Register(
+            string username,
+            string password,
+            string fullname,
+            string email,
+            string phone_number
+        )
         {
             try
             {
                 // ตรวจสอบว่ามีข้อมูลครบหรือไม่
                 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
                 {
-                    return Json(new { success = false, message = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน" });
+                    return Json(
+                        new { success = false, message = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน" }
+                    );
                 }
 
                 // ตรวจสอบว่ามีชื่อผู้ใช้นี้อยู่แล้วหรือไม่
-                var existingUser = await _context.sys_users.FirstOrDefaultAsync(u => u.username == username.Trim());
+                var existingUser = await _context.sys_users.FirstOrDefaultAsync(u =>
+                    u.username == username.Trim()
+                );
                 if (existingUser != null)
                 {
                     return Json(new { success = false, message = "ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว" });
@@ -135,7 +148,7 @@ namespace kfrpj.Controllers
                     phone_number = phone_number?.Trim(),
                     role = "user", // กำหนดบทบาทเริ่มต้น
                     created_at = DateTime.Now,
-                    record_status = "Y"
+                    record_status = "Y",
                 };
 
                 _context.sys_users.Add(newUser);
@@ -194,7 +207,9 @@ namespace kfrpj.Controllers
         [HttpGet]
         public async Task<IActionResult> GoogleResponse()
         {
-            var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var result = await HttpContext.AuthenticateAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme
+            );
             if (result.Succeeded)
             {
                 // เข้าสู่ระบบสำเร็จ
