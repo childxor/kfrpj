@@ -22,6 +22,7 @@ namespace kfrpj.Controllers
         }
 
         // แสดงหน้า Login
+        [HttpGet]
         public IActionResult Login()
         {
             return View();
